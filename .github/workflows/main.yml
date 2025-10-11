@@ -1,0 +1,136 @@
+name: Notify Discord on Release
+
+on:
+  release:
+    types: [published, prereleased]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag della release da annunciare (opzionale). Se vuoto usa l'ultima release pubblicata."
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  notify-discord:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Ensure jq present
+        run: |
+          if ! command -v jq >/dev/null 2>&1; then
+            sudo apt-get update -y
+            sudo apt-get install -y jq
+          fi
+
+      - name: Resolve release payload (event or API fallback)
+        id: rel
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          EVENT_NAME="${GITHUB_EVENT_NAME}"
+          REPO="${{ github.repository }}"
+          INPUT_TAG="${{ github.event.inputs.tag || '' }}"
+
+          echo "Evento: $EVENT_NAME  Repo: $REPO  Input tag: $INPUT_TAG"
+
+          # Se l'evento è release, usa direttamente il payload dell'evento
+          if [ "$EVENT_NAME" = "release" ]; then
+            jq -r '.release' "$GITHUB_EVENT_PATH" > release.json
+            echo "source=event" >> "$GITHUB_OUTPUT"
+          else
+            # Fallback: chiamata API (manual dispatch o altri trigger)
+            if [ -n "$INPUT_TAG" ]; then
+              # release per tag specifico
+              curl -fsSL -H "Authorization: Bearer $GH_TOKEN" \
+                -H "Accept: application/vnd.github+json" \
+                "https://api.github.com/repos/$REPO/releases/tags/$INPUT_TAG" > release.json
+            else
+              # ultima release pubblicata
+              curl -fsSL -H "Authorization: Bearer $GH_TOKEN" \
+                -H "Accept: application/vnd.github+json" \
+                "https://api.github.com/repos/$REPO/releases/latest" > release.json
+            fi
+            echo "source=api" >> "$GITHUB_OUTPUT"
+          fi
+
+          echo "Release payload breve:"
+          jq '{id, tag_name, name, draft, prerelease, html_url, published_at}' release.json
+
+          # Validazioni minime
+          TAG=$(jq -r '.tag_name // empty' release.json)
+          URL=$(jq -r '.html_url // empty' release.json)
+          if [ -z "$TAG" ] || [ -z "$URL" ]; then
+            echo "❌ Nessuna release valida trovata (manca tag_name o html_url)."
+            exit 1
+          fi
+
+      - name: Build Discord payload (embed + emoji)
+        id: build
+        run: |
+          set -euo pipefail
+
+          REPO="${{ github.repository }}"
+          NAME=$(jq -r '.name // empty' release.json)
+          TAG=$(jq -r '.tag_name // empty' release.json)
+          URL=$(jq -r '.html_url // empty' release.json)
+          BODY=$(jq -r '.body // ""' release.json)
+          TS=$(jq -r '.published_at // now | fromdate | todate' release.json)
+
+          # fallback nome
+          if [ -z "$NAME" ] || [ "$NAME" = "null" ]; then
+            NAME="$TAG"
+          fi
+          if [ -z "$BODY" ] || [ "$BODY" = "null" ]; then
+            BODY="Nessuna nota di rilascio."
+          fi
+
+          # Limiti Discord: description max 4096 → margine
+          MAX=3900
+          if [ ${#BODY} -gt $MAX ]; then
+            BODY="${BODY:0:$MAX}\n\n… *(note troncate)*"
+          fi
+
+          CONTENT="🚀 **Nuova release pubblicata!**  **${REPO}** → **${TAG}**"
+
+          jq -n \
+            --arg content "$CONTENT" \
+            --arg title   "✨ $NAME" \
+            --arg url     "$URL" \
+            --arg desc    "$BODY" \
+            --arg footer  "${REPO} • ${TAG}" \
+            --arg ts      "$TS" \
+            '{content:$content, embeds:[{title:$title,url:$url,description:$desc,footer:{text:$footer},timestamp:$ts}]}' \
+            > payload.json
+
+          echo "Payload Discord:"
+          jq . payload.json
+
+      - name: Send to Discord
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+        run: |
+          set -euo pipefail
+
+          if [[ -z "${DISCORD_WEBHOOK}" ]]; then
+            echo "❌ Secret DISCORD_WEBHOOK mancante (Settings → Secrets and variables → Actions)."
+            exit 1
+          fi
+          case "$DISCORD_WEBHOOK" in
+            */github) echo "❌ Non usare /github: serve l'URL puro del webhook per messaggi custom."; exit 1;;
+          esac
+
+          HTTP_CODE=$(curl -s -o /tmp/resp.txt -w "%{http_code}" -X POST "$DISCORD_WEBHOOK" \
+            -H "Content-Type: application/json" \
+            --data @payload.json)
+
+          echo "Discord HTTP $HTTP_CODE"
+          if [ "$HTTP_CODE" -lt 200 ] || [ "$HTTP_CODE" -ge 300 ]; then
+            echo "Risposta:"
+            cat /tmp/resp.txt
+            exit 1
+          fi
