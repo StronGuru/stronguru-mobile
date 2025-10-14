@@ -1,63 +1,154 @@
-## Repo snapshot for AI coding agents
+# Stronguru Mobile - AI Coding Agent Instructions
 
-Quick, actionable notes so an automated agent can be immediately productive in this Expo + React Native codebase.
+## Platform & Architecture
 
-- Platform: Expo (React Native) app using TypeScript and `expo-router` (file-based routing under `app/`).
-- State: global state via `zustand` with `persist` middleware (keys: `auth-storage`, `user-data-storage`).
-- API: custom axios client in `api/apiClient.ts` implementing Authorization header + cookie-based refresh flow.
-- Realtime: Supabase for realtime + DB access (client at `lib/supabase/client.ts`).
+**Tech Stack**: Expo 53 + React Native 0.79 + TypeScript + `expo-router` (file-based routing in `app/`)
 
-Key commands (development):
+**State Management**: Zustand with AsyncStorage persistence via `persist` middleware
 
-- Install: `npm install`
-- Start (Expo): `npx expo start` (or `npm start`, `npm run ios`, `npm run android`, `npm run web`)
-- Reset starter app: `npm run reset-project`
-- Lint: `npm run lint`
+- Auth: `auth-storage` key (token, deviceId, userId) - see `src/store/authStore.ts`
+- User data: `user-data-storage` key - see `src/store/userDataStore.ts`
+- Chat badges: `src/store/chatBadgeStore.ts` and `chatRoomsRefreshStore.ts`
+- Onboarding: `src/store/onboardingStore.ts`
 
-Important env variables
+**Routing**: File-based routing with protected routes via `Stack.Protected` guard in `app/_layout.tsx`
 
-- `EXPO_PUBLIC_API_URL` — used by `api/apiClient.ts` baseURL and refresh endpoint
-- `EXPO_PUBLIC_SUPABASE_URL` / `EXPO_PUBLIC_SUPABASE_ANON_KEY` — used by `lib/supabase/client.ts`
+- Auth flow: `(auth)/*` → `(onboarding)/*` → `(tabs)/*` based on `isAuthenticated` + `hasCompletedOnboarding`
+- Root layout controls splash screen visibility until stores hydrate (`isHydrated` flags)
 
-Auth & API patterns (concrete)
+**Styling**: NativeWind 4 (Tailwind for RN) - use `className` prop, not inline styles
 
-- `api/apiClient.ts` adds `Authorization: Bearer <token>` from `useAuthStore` (see `src/store/authStore.ts`).
-- It adds device headers: `X-Device-Id` (from store) and `X-Device-Type: mobile`.
-- On 401 it calls `${API_URL}/auth/refresh-token` with `withCredentials: true` to rely on HTTP-only refresh cookies; after a successful refresh it updates `useAuthStore.setAuthData` and replays waiting requests.
-- If refresh fails it calls `useAuthStore.logoutUser()` and `useUserDataStore.clearUser()` (look at `src/store/*.ts` for exact effects). Use these files when changing auth behavior.
+- Theme system in `tailwind.config.js` uses CSS vars (`var(--color-primary, #10b981)`)
+- Custom colors: `primary`, `secondary`, `accent`, `muted`, `surface`, etc.
+- Dark mode: `darkMode: "class"` configured, toggled via `ThemeProvider.tsx`
 
-Supabase / realtime (concrete)
+## Development Workflow
 
-- `lib/supabase/client.ts` creates the supabase client with `realtime.params.eventsPerSecond: 10` and imports polyfills needed for RN (`react-native-get-random-values` and `react-native-url-polyfill/auto`).
-- Chat hook: `hooks/use-realtime-chat.native.tsx`:
-  - reads current messages from `messages` table filtered by `room`.
-  - subscribes to `client.channel(roomName)` and listens for broadcast events with `event: "message"`.
-  - `sendMessage` inserts into the `messages` table and then `channel.send({ type: 'broadcast', event: 'message', payload })`.
-- Room listing is derived from messages in `src/services/chatService.native.ts` (groups by `room` and extracts last message).
+```bash
+npm install              # Install dependencies
+npx expo start           # Start dev server (or npm start/ios/android/web)
+npm run lint             # Run ESLint
+npm run reset-project    # Reset to blank app
+```
 
-Project conventions & small gotchas
+**No tests configured** - add unit tests by mocking `apiClient` and `supabase` clients.
 
-- Path alias `@` is used (check `tsconfig.json` for exact mapping). Import paths like `@/lib/supabase/client` are common.
-- `.native.tsx` / `.native.ts` files: platform-specific implementations live alongside shared files — prefer editing the `.native` variant for RN behavior.
-- Persistent store names are set in the `persist` middleware: `auth-storage` and `user-data-storage`. But `logoutUser()` explicitly removes AsyncStorage keys `auth_token` and `device_id` — be careful when changing storage keys or the logout flow.
-- Lots of console logging is used as the primary debug mechanism (search for `console.log`/`console.error`). Follow those traces when investigating runtime issues.
+## Critical API & Auth Pattern
 
-Files to inspect first when making changes
+**API Client** (`api/apiClient.ts`):
 
-- `api/apiClient.ts` — request/response interceptors, refresh flow, device header behavior.
-- `src/store/authStore.ts` and `src/store/userDataStore.ts` — zustand usage and persisted keys.
-- `lib/supabase/client.ts` — supabase config and polyfills for RN.
-- `hooks/use-realtime-chat.native.tsx` and `src/services/chatService.native.ts` — realtime subscribe/insert patterns for chat.
-- `app/` — route structure (expo-router file-based routing). Look here for UI entry points.
+- Axios instance with `baseURL: process.env.EXPO_PUBLIC_API_URL`
+- **Request interceptor**: injects `Authorization: Bearer <token>`, `X-Device-Id`, `X-Device-Type: mobile` from `useAuthStore`
+- **Response interceptor**: handles 401 with token refresh flow:
+  1. Calls `POST ${API_URL}/auth/refresh-token` with `withCredentials: true` (HTTP-only cookies)
+  2. Uses refresh lock (`isRefreshing`, `refreshSubscribers`) to queue concurrent 401s
+  3. On success: updates `useAuthStore.setAuthData({ token: newToken })`, retries failed requests
+  4. On failure: calls `useAuthStore.logoutUser()` + `useUserDataStore.clearUser()`
 
-How to change auth or refresh behavior safely
+**Auth Store Critical Details** (`src/store/authStore.ts`):
 
-1. Update `api/apiClient.ts` only after reading `authStore` to keep signatures compatible.
-2. Preserve `withCredentials: true` on refresh calls unless you also change server cookie semantics.
-3. If you change persisted key names, adjust `persist({ name: ... })` and the explicit AsyncStorage removal calls used in `logoutUser()`.
+- Persisted keys: `token`, `deviceId`, `userId`, `isAuthenticated`
+- `logoutUser()` **explicitly removes** AsyncStorage keys `auth_token` and `device_id` (in addition to clearing store)
+- Error handling: extensive status code mapping (400/401/422/429/500) with user-friendly Italian messages
 
-When adding tests or automation
+**NEVER change** `withCredentials: true` on refresh calls without backend coordination.
 
-- There are no tests by default. Add small unit tests that mock `apiClient` and `supabase` clients. Prefer isolating `useAuthStore` and `apiClient` interceptors.
+## Supabase Realtime Chat Architecture
 
-If anything here is unclear or you want me to add repository-specific linting or CI checks, tell me which area to expand and I will iterate.
+**Setup** (`lib/supabase/client.ts`):
+
+```typescript
+// REQUIRED polyfills for RN (import order matters)
+import "react-native-get-random-values";
+import "react-native-url-polyfill/auto";
+createClient(SUPABASE_URL, SUPABASE_KEY, { realtime: { params: { eventsPerSecond: 10 } } });
+```
+
+**Chat Message Flow** (`hooks/use-realtime-chat.native.tsx`):
+
+1. Fetch initial messages: `supabase.from("messages").select(...).eq("room_id", roomId)`
+2. Subscribe to channel: `supabase.channel(\`room:${roomId}\`)`
+3. Listen to **two event types**:
+   - `broadcast` with `event: "message"` (custom client broadcasts)
+   - `postgres_changes` with `event: "INSERT"` on `messages` table (DB-level inserts)
+4. `sendMessage`: insert to DB + broadcast via `channel.send({ type: 'broadcast', event: 'message', payload })`
+5. Typing indicators: broadcast `event: "typing"` with auto-clear after 5s timeout
+
+**Room Management** (`src/services/chatService.native.ts`):
+
+- `fetchRoomsForUser()`: batch fetches rooms, participants, messages; calculates unread counts
+- `markMessagesAsRead()`: updates `read: true` for all non-sender messages in room
+- Unread count: filters messages where `(read === null || read === false) && sender_id !== userId`
+
+**Global Unread Badge** (`hooks/use-global-chat-realtime.ts`):
+
+- Lives in root layout (`app/_layout.tsx`) to persist across navigation
+- Subscribes to ALL rooms user participates in, counts total unread
+- Uses `DeviceEventEmitter` for cross-component communication
+
+## Platform-Specific Files (`.native.tsx/ts`)
+
+14 `.native` files exist (chat components, services, hooks). These are **React Native-specific implementations**.
+
+- Always prefer editing `.native` variants over generic files for RN behavior
+- Examples: `use-realtime-chat.native.tsx`, `chatService.native.ts`, `ChatMessageItem.native.tsx`
+
+## Path Alias & Import Conventions
+
+**All imports use `@/` alias** (maps to repo root in `tsconfig.json`):
+
+```typescript
+import { supabase } from "@/lib/supabase/client";
+import { useAuthStore } from "@/src/store/authStore";
+import apiClient from "@/api/apiClient";
+```
+
+## Debugging & Logging
+
+**Extensive console logging** with emoji prefixes is the primary debug mechanism:
+
+- `🔄` - process starting
+- `✅` - success
+- `❌` - error
+- `📥/📤` - network calls
+- `🔵/🔴` - state changes
+
+Follow these patterns when adding logs. Search codebase for `console.log`/`console.error` to see existing patterns.
+
+## Common Pitfalls
+
+1. **AsyncStorage logout**: `logoutUser()` removes hardcoded keys `auth_token` and `device_id` - if you rename persist keys, update this logic
+2. **Supabase polyfills**: MUST import `react-native-get-random-values` and `react-native-url-polyfill/auto` before creating client
+3. **Realtime deduplication**: Both `broadcast` and `postgres_changes` fire for same message - check `prev.some(m => m.id === mapped.id)` before adding
+4. **Splash screen**: Don't render UI until `authHydrated && onboardingHydrated && fontsLoaded` - keeps native splash visible during hydration
+5. **Device headers**: Always include `X-Device-Id` and `X-Device-Type: mobile` in API calls (handled by apiClient interceptor)
+
+## Key Files Reference
+
+| File                                 | Purpose                                         |
+| ------------------------------------ | ----------------------------------------------- |
+| `api/apiClient.ts`                   | Axios instance, auth interceptors, refresh flow |
+| `src/store/authStore.ts`             | Auth state, login/logout, error mapping         |
+| `src/store/userDataStore.ts`         | User profile data, CRUD operations              |
+| `lib/supabase/client.ts`             | Supabase client with RN polyfills               |
+| `hooks/use-realtime-chat.native.tsx` | Room-level realtime chat logic                  |
+| `hooks/use-global-chat-realtime.ts`  | App-wide unread badge counter                   |
+| `src/services/chatService.native.ts` | Room fetching, unread counting                  |
+| `app/_layout.tsx`                    | Root router, protected routes, splash control   |
+| `app/(tabs)/_layout.tsx`             | Bottom tab navigation, badge display            |
+| `tailwind.config.js`                 | NativeWind theme config                         |
+
+## Environment Variables
+
+```bash
+EXPO_PUBLIC_API_URL              # Backend API base URL
+EXPO_PUBLIC_SUPABASE_URL         # Supabase project URL
+EXPO_PUBLIC_SUPABASE_ANON_KEY    # Supabase anon/public key
+```
+
+## When Making Changes
+
+**Auth/API changes**: Read `apiClient.ts` + `authStore.ts` together - they're tightly coupled via dynamic imports
+**Chat changes**: Check BOTH `.native` file and corresponding service file (hook + service pattern)
+**Store changes**: Update persist key names in BOTH `persist({ name: "..." })` AND any explicit AsyncStorage calls
+**Routing changes**: Understand guard logic in `app/_layout.tsx` - uses `Stack.Protected` with zustand state guards
