@@ -1,7 +1,8 @@
 import { useUserDataStore } from "@/src/store/userDataStore";
 import type { ChatMessage } from "@/src/types/chatTypes";
-import React from "react";
-import { Alert, Linking, Text, TouchableOpacity, View } from "react-native";
+import { ExternalLink } from "lucide-react-native";
+import React, { useEffect, useRef } from "react";
+import { Alert, AppState, Linking, Text, TouchableOpacity, View } from "react-native";
 
 type Props = {
   message: ChatMessage;
@@ -16,6 +17,22 @@ export default function ChatMessageItemNative({ message, currentUserId, showHead
   const urlMatch = message.content.match(/(https?:\/\/[^\s]+)/);
   const invitationUrl = urlMatch ? urlMatch[0] : null;
   const { user, fetchUserData } = useUserDataStore();
+  const hasOpenedInvitation = useRef(false);
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener("change", (nextAppState) => {
+      // Se l'app torna attiva E abbiamo aperto un invito → refetch
+      if (nextAppState === "active" && hasOpenedInvitation.current) {
+        console.log("🔄 App tornata in foreground dopo invito, refetch user data...");
+        fetchUserData(user?._id || "");
+        hasOpenedInvitation.current = false; // Reset flag
+      }
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, [user?._id, fetchUserData]);
 
   const handleOpenLink = async () => {
     if (!invitationUrl) return;
@@ -23,8 +40,8 @@ export default function ChatMessageItemNative({ message, currentUserId, showHead
     try {
       const canOpen = await Linking.canOpenURL(invitationUrl);
       if (canOpen) {
+        hasOpenedInvitation.current = true;
         await Linking.openURL(invitationUrl);
-        fetchUserData(user?._id || "");
       } else {
         Alert.alert("Errore", "Impossibile aprire il link");
       }
@@ -34,7 +51,7 @@ export default function ChatMessageItemNative({ message, currentUserId, showHead
     }
   };
 
-  // ✅ Rendering per messaggi di invito
+  // Rendering per messaggi di invito
   if (isInvitationMessage && invitationUrl) {
     const messageText = message.content.split("\n\n")[1]?.replace("🔗 Clicca qui per confermare: " + invitationUrl, "") || "";
 
@@ -46,13 +63,14 @@ export default function ChatMessageItemNative({ message, currentUserId, showHead
           {/* Card speciale per invito */}
           <View className="p-4 rounded-lg bg-muted border border-border">
             <View className="mb-3">
-              <Text className="font-semibold text-sm text-primary">📨 Richiesta di collegamento</Text>
+              <Text className="font-semibold text-md text-primary mb-1">📨 Richiesta di collegamento</Text>
               <Text className="text-sm text-muted-foreground mt-1">{messageText}</Text>
             </View>
 
             {/* Pulsante per aprire il link */}
-            <TouchableOpacity onPress={handleOpenLink} className="bg-primary py-3 px-4 rounded-lg active:opacity-80">
-              <Text className="text-primary-foreground text-center font-semibold">🔗 Apri invito</Text>
+            <TouchableOpacity onPress={handleOpenLink} className="bg-primary py-3 px-4 rounded-lg active:opacity-80 flex-row justify-center items-center gap-2">
+              <ExternalLink size={16} />
+              <Text className="text-primary-foreground text-center font-semibold">Accetta invito</Text>
             </TouchableOpacity>
 
             <Text className="text-xs text-muted-foreground text-center mt-3">{time}</Text>
