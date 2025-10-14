@@ -53,7 +53,7 @@ export default function ChatMessageItemNative({ message, currentUserId, showHead
 
   // Rendering per messaggi di invito
   if (isInvitationMessage && invitationUrl) {
-    const messageText = message.content.split("\n\n")[1]?.replace("🔗 Clicca qui per confermare: " + invitationUrl, "") || "";
+    const messageText = message.content.split("\n\n")[1]?.replace("Accetta invito" + invitationUrl, "") || "";
 
     return (
       <View className={`flex mb-4 ${isOwn ? "items-end" : "items-start"}`}>
