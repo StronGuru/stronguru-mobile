@@ -70,6 +70,14 @@ export default function HomeLayout() {
           headerBackTitle: "Home"
         }}
       />
+      <Stack.Screen
+        name="myprotein-details"
+        options={{
+          headerShown: true,
+          title: "",
+          headerBackTitle: "Home"
+        }}
+      />
     </Stack>
   );
 }

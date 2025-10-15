@@ -1,7 +1,7 @@
 import apiClient from "@/api/apiClient";
 import { Brain, Dumbbell, Filter, MapPin, Rocket, Salad, Search, X } from "lucide-react-native";
 import React, { useEffect, useState } from "react";
-import { ActivityIndicator, Image, Modal, SafeAreaView, ScrollView, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, Image, Modal, RefreshControl, SafeAreaView, ScrollView, Text, TextInput, TouchableOpacity, View } from "react-native";
 
 import AppText from "@/components/ui/AppText";
 import { useRouter } from "expo-router";
@@ -36,6 +36,7 @@ export default function SearchScreen() {
   const [loading, setLoading] = useState<boolean>(true);
   const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
   const [openFilter, setOpenFilter] = useState<boolean>(false);
+  const [refreshing, setRefreshing] = useState<boolean>(false);
   const router = useRouter();
 
   const filterOptions: FilterOption[] = [
@@ -43,89 +44,44 @@ export default function SearchScreen() {
     { label: "Nutrizionisti", value: "nutritionist" }
   ];
 
-  // const mockProfessionals: Professional[] = [
-  //   {
-  //     id: "1",
-  //     firstName: "Pasquale",
-  //     lastName: "Capuano",
-  //     address: {
-  //       city: "Bari",
-  //       province: "BA"
-  //     },
-  //     ambassador: true,
-  //     profileImg: null,
-  //     specializations: ["trainer"]
-  //   },
-  //   {
-  //     id: "2",
-  //     firstName: "Giulia",
-  //     lastName: "Rossi",
-  //     address: {
-  //       city: "Milano",
-  //       province: "MI"
-  //     },
-  //     ambassador: false,
-  //     profileImg: null,
-  //     specializations: ["nutritionist"]
-  //   },
-  //   {
-  //     id: "3",
-  //     firstName: "Luca",
-  //     lastName: "Bianchi",
-  //     address: {
-  //       city: "Roma",
-  //       province: "RM"
-  //     },
-  //     ambassador: true,
-  //     profileImg:
-  //       "https://all-images.ai/wp-content/uploads/2023/09/comprendre-les-droits-d26rsquo3Bimage26nbsp3B3A-comment-savoir-si-une-image-est-libre-de-droit26nbsp3B3F.jpg",
-  //     specializations: ["trainer"]
-  //   },
-  //   {
-  //     id: "4",
-  //     firstName: "Martina",
-  //     lastName: "Verdi",
-  //     address: {
-  //       city: "Napoli",
-  //       province: "NA"
-  //     },
-  //     ambassador: false,
-  //     profileImg: null,
-  //     specializations: ["psychologist"]
-  //   },
-  //   {
-  //     id: "5",
-  //     firstName: "Alessandro",
-  //     lastName: "Moretti",
-  //     address: {
-  //       city: "Torino",
-  //       province: "TO"
-  //     },
-  //     ambassador: true,
-  //     profileImg: null,
-  //     specializations: ["trainer", "nutritionist", "psychologist"]
-  //   }
-  // ];
+  const fetchProfessionals = async () => {
+    try {
+      console.log("🔄 Fetching professionals...");
+      const resp = await apiClient.get("/professionals");
+      if (!resp.data) {
+        throw new Error("Errore nel caricamento dei professionisti");
+      }
+      setProfessionals(resp.data);
+      console.log("✅ Professionals loaded:", resp.data.length);
+    } catch (error) {
+      console.error("❌ Error fetching professionals:", error);
+    }
+  };
 
+  // Fetch iniziale al mount
   useEffect(() => {
-    const fetchProfessionals = async () => {
+    const loadInitialData = async () => {
       try {
         setLoading(true);
-        const resp = await apiClient.get("/professionals");
-        if (!resp.data) {
-          throw new Error("Errore nel caricamento dei professionisti");
-        } else {
-          setProfessionals(resp.data);
-        }
-      } catch (error) {
-        console.error("Errore nel caricamento dei professionisti:", error);
+        await fetchProfessionals();
       } finally {
         setLoading(false);
       }
     };
 
-    fetchProfessionals();
+    loadInitialData();
   }, []);
+
+  // Funzione per pull-to-refresh
+  const onRefresh = async () => {
+    try {
+      setRefreshing(true);
+      console.log("🔄 Refreshing professionals...");
+      await fetchProfessionals();
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   const getBadgesFromSpecializations = (specializations: string[]): BadgeType[] => {
     const badges: BadgeType[] = [];
@@ -311,7 +267,20 @@ export default function SearchScreen() {
           <AppText className=" mt-2">Caricamento professionisti...</AppText>
         </View>
       ) : (
-        <ScrollView className="flex-1 px-4 py-4 bg-background">
+        <ScrollView
+          className="flex-1 px-4 py-4 bg-background"
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor="#10b981"
+              colors={["#10b981"]}
+              title="Aggiornamento..."
+              titleColor="#10b981"
+            />
+          }
+        >
           <View className="flex-row flex-wrap justify-between">
             {filteredProfessionals.map((professional: Professional) => (
               <View key={professional._id} className="w-[48%]">
