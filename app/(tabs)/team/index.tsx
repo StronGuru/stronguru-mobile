@@ -4,15 +4,16 @@ import Card from "@/components/ui/Card";
 import { ProfileType } from "@/lib/zod/userSchemas";
 import { useAuthStore } from "@/src/store/authStore";
 import { useUserDataStore } from "@/src/store/userDataStore";
-import { router, useFocusEffect } from "expo-router";
-import React, { useCallback, useMemo, useState } from "react";
-import { ActivityIndicator, SafeAreaView, ScrollView, TouchableOpacity, View } from "react-native";
+import { router } from "expo-router";
+import React, { useEffect, useMemo, useState } from "react";
+import { ActivityIndicator, RefreshControl, SafeAreaView, ScrollView, TouchableOpacity, View } from "react-native";
 
 export default function Team() {
   const { userId } = useAuthStore();
   const [profiles, setProfiles] = useState<ProfileType[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const { fetchUserData } = useUserDataStore();
+  const [refreshing, setRefreshing] = useState<boolean>(false);
 
   // Calcola servizi disponibili
   const availableServices = useMemo(() => {
@@ -56,33 +57,49 @@ export default function Team() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profiles]); // Ricalcola quando cambiano i profiles
 
-  const fetchUpdatedProfiles = async () => {
-    if (!userId) {
-      setProfiles([]);
-      setLoading(false);
-      return;
-    }
+  // Fetch iniziale al mount
+  useEffect(() => {
+    const loadInitialData = async () => {
+      if (!userId) {
+        setProfiles([]);
+        setLoading(false);
+        return;
+      }
+
+      try {
+        setLoading(true);
+        await fetchUserData(userId);
+        const latestUser = useUserDataStore.getState().user;
+        setProfiles(latestUser?.profiles ?? []);
+      } catch (error) {
+        console.error("❌ Error fetching profiles:", error);
+        setProfiles([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadInitialData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId]);
+
+  // Funzione per pull-to-refresh
+  const onRefresh = async () => {
+    if (!userId) return;
+
     try {
-      setLoading(true);
-      // Aggiorna lo user nello store per ottenere eventuali nuovi profiles
+      setRefreshing(true);
+      console.log("🔄 Refreshing team data...");
       await fetchUserData(userId);
       const latestUser = useUserDataStore.getState().user;
-      const profilesFromStore = latestUser?.profiles ?? [];
-      setProfiles(profilesFromStore);
+      setProfiles(latestUser?.profiles ?? []);
+      console.log("✅ Team data refreshed");
     } catch (error) {
-      console.error("Error fetching profiles (from store):", error);
-      setProfiles([]);
+      console.error("❌ Error refreshing profiles:", error);
     } finally {
-      setLoading(false);
+      setRefreshing(false);
     }
   };
-
-  useFocusEffect(
-    useCallback(() => {
-      fetchUpdatedProfiles();
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [])
-  );
 
   const handleNutritionPress = () => {
     const { user } = useUserDataStore.getState();
@@ -152,7 +169,20 @@ export default function Team() {
 
   return (
     <SafeAreaView className="flex-1   bg-background">
-      <ScrollView showsVerticalScrollIndicator={false} className="px-4 pt-4">
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        className="px-4 pt-4"
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor="#10b981" // iOS spinner color
+            colors={["#10b981"]} // Android spinner color
+            title="Aggiornamento..." // iOS text (optional)
+            titleColor="#10b981" // iOS text color (optional)
+          />
+        }
+      >
         <Card className="flex-row flex-wrap mb-6 mt-2">
           <AppText w="semi" className="text-2xl text-primary">
             Il tuo Team
