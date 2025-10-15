@@ -7,7 +7,7 @@ import { useUserDataStore } from "@/src/store/userDataStore";
 import { useRouter } from "expo-router";
 import { CircleUser, Settings } from "lucide-react-native";
 import React from "react";
-import { ScrollView, TouchableOpacity, useColorScheme, View } from "react-native";
+import { Image, ScrollView, TouchableOpacity, useColorScheme, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 const Index = () => {
@@ -54,9 +54,17 @@ const Index = () => {
         {/* Quick Access scrollable Cards */}
         <Slider />
         {/* Card Trainings e Mindfulness */}
-        <View className="mt-8 px-4 flex-row gap-2 justify-around ">
+        <View className="mt-5 px-4 flex-row gap-2 justify-around ">
           <TrainingsCard />
           <MindfulnessHomeCard />
+        </View>
+
+        <View className="mt-5 px-4 flex-col justify-center items-center">
+          <AppText className="text-xs text-muted-foreground mb-0">In partnership con</AppText>
+          {/* Immagine MyProtein cliccabile che porta a pagina dettagli */}
+          <TouchableOpacity onPress={() => router.push("/home/myprotein-details")} className="w-[120px] h-5 overflow-hidden ">
+            <Image source={require("@/assets/images/myprotein.png")} className="w-full h-full object-cover" />
+          </TouchableOpacity>
         </View>
       </ScrollView>
     </SafeAreaView>
