@@ -73,7 +73,7 @@ export const HeroCard: React.FC<HeroCardProps> = ({ onPress }) => {
   }
 
   return (
-    <TouchableOpacity className="mx-4 mt-8 mb-5" onPress={handlePress}>
+    <TouchableOpacity className="mx-4 mt-8 mb-4" onPress={handlePress}>
       {/* imposta colore default se non presente da db */}
       <View className=" bg-blue-400 min-h-[170px] shadow-sm  rounded-3xl flex-row items-center gap-4 p-4 overflow-visible">
         <View className="w-2/3 shadow-sm">

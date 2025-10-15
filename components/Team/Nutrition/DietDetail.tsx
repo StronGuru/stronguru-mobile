@@ -1,8 +1,9 @@
 import AppText from "@/components/ui/AppText";
 import { DietType } from "@/lib/zod/userSchemas";
 import { getAutoSelectedDay } from "@/utils/mealUtils";
+import { ExternalLink } from "lucide-react-native";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ScrollView, TouchableOpacity, View } from "react-native";
+import { Linking, ScrollView, TouchableOpacity, View } from "react-native";
 import DayPlanView from "./DayPlanView";
 
 interface DietDetailProps {
@@ -141,6 +142,25 @@ export default function DietDetail({ diet }: DietDetailProps) {
             <AppText>{diet.notes}</AppText>
           </View>
         )}
+
+        <AppText className="mt-3 pt-3 border-t border-secondary">Supporta la tua alimentazione con prodotti di qualità.</AppText>
+        <AppText className="text-md">
+          Con il codice{" "}
+          <AppText w="semi" className="text-primary">
+            STRONGURU
+          </AppText>{" "}
+          ottieni 10% di sconto al checkout su:
+        </AppText>
+        <View className="flex-row items-center justify-center mt-1 mb-2 gap-1">
+          <AppText
+            w="semi"
+            className="text-primary underline text-center text-xl"
+            onPress={() => Linking.openURL("https://www.myprotein.it/?utm_source=stronguru&utm_medium=app&utm_campaign=partnership")}
+          >
+            Shop MyProtein
+          </AppText>
+          <ExternalLink size={16} color="#10b981" />
+        </View>
       </View>
 
       {/* Days Tabs */}
