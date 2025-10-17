@@ -1,44 +1,15 @@
-import { getHeroData } from "@/src/services/heroService";
 import { HeroType } from "@/src/types/heroTypes";
 import { router } from "expo-router";
 import { MoveRight } from "lucide-react-native";
-import { useEffect, useState } from "react";
 import { Image, TouchableOpacity, View } from "react-native";
 import AppText from "../ui/AppText";
 
 interface HeroCardProps {
+  hero: HeroType;
   onPress?: (hero: HeroType) => void;
 }
 
-export const HeroCard: React.FC<HeroCardProps> = ({ onPress }) => {
-  const [hero, setHero] = useState<HeroType | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    const fetchHeroData = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        const heroData = await getHeroData();
-
-        // Prendi l'ultimo elemento per createdAt più recente
-        if (heroData.length > 0) {
-          setHero(heroData[heroData.length - 1]);
-        } else {
-          setError("Nessun dato hero disponibile");
-        }
-      } catch (err) {
-        console.error("Error fetching hero data:", err);
-        setError(err instanceof Error ? err.message : "Errore sconosciuto");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchHeroData();
-  }, []);
-
+export const HeroCard: React.FC<HeroCardProps> = ({ hero, onPress }) => {
   const handlePress = () => {
     if (hero) {
       if (onPress) {
@@ -54,23 +25,6 @@ export const HeroCard: React.FC<HeroCardProps> = ({ onPress }) => {
       }
     }
   };
-
-  if (loading) {
-    return (
-      <View>
-        {/* inserisci skeleton placeholder */}
-        <AppText>Caricamento...</AppText>
-      </View>
-    );
-  }
-
-  if (error || !hero) {
-    return (
-      <View>
-        <AppText>{error || "Errore caricamento"}</AppText>
-      </View>
-    );
-  }
 
   return (
     <TouchableOpacity className="mx-4 mt-8 mb-4" onPress={handlePress}>

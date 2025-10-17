@@ -3,6 +3,7 @@ import MindfulnessHomeCard from "@/components/home/MindfulnessHomeCard";
 import Slider from "@/components/home/Slider";
 import TrainingsCard from "@/components/home/TrainingsCard";
 import AppText from "@/components/ui/AppText";
+import { useHeroStore } from "@/src/store/heroStore";
 import { useUserDataStore } from "@/src/store/userDataStore";
 import { useRouter } from "expo-router";
 import { CircleUser, Settings } from "lucide-react-native";
@@ -14,6 +15,7 @@ const Index = () => {
   const colorScheme = useColorScheme();
   const router = useRouter();
   const { user } = useUserDataStore();
+  const { hero } = useHeroStore();
 
   const today = new Date();
   let weekday = today.toLocaleDateString("it-IT", { weekday: "long" }).replace(".", "");
@@ -50,7 +52,7 @@ const Index = () => {
 
       <ScrollView className="flex-1" contentContainerStyle={{ flexGrow: 1 }} showsVerticalScrollIndicator={false}>
         {/* Hero Card */}
-        <HeroCard />
+        {hero && <HeroCard hero={hero} />}
 
         {/* Quick Access scrollable Cards */}
         <Slider />
