@@ -28,8 +28,11 @@
         "ACCESS_FINE_LOCATION",
         "RECEIVE_BOOT_COMPLETED",
         "VIBRATE",
-        "WAKE_LOCK"
-      ]
+        "WAKE_LOCK",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION"
+      ],
+      "package": "com.gaithan.strongurumobilefinal"
     },
     "web": {
       "bundler": "metro",
@@ -37,6 +40,14 @@
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "kotlinVersion": "1.9.22"
+          }
+        }
+      ],
       "expo-router",
       [
         "expo-splash-screen",
@@ -50,7 +61,7 @@
       [
         "expo-notifications",
         {
-          "icon": "./assets/images/notification-icon.png",
+          "icon": "./assets/images/icon.png",
           "color": "#059669",
           "defaultChannel": "default"
         }
@@ -61,10 +72,16 @@
           "locationWhenInUsePermission": "Stronguru usa la posizione per trovare personal trainer e nutrizionisti nella tua zona."
         }
       ],
-      "expo-font"
+      "expo-build-properties"
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "0d3a8d72-1cfd-4c48-8395-28a963e008ef"
+      }
     }
   }
 }

@@ -1,6 +1,7 @@
 import { RealtimeChatNative } from "@/components/chat/RealtimeChat.native";
 import { triggerUnreadMessagesUpdate } from "@/hooks/use-global-chat-realtime";
-import { supabase } from "@/lib/supabase/client";
+// TODO: Remove supabase import when migrating to backend API
+// import { supabase } from "@/lib/supabase/client";
 import { markMessagesAsRead } from "@/src/services/chatService.native";
 import { useUserDataStore } from "@/src/store/userDataStore";
 import { useFocusEffect } from "@react-navigation/native";
@@ -27,7 +28,7 @@ export default function ChatRoomScreen() {
   const { room, chatUser: chatUserParam } = useLocalSearchParams<Params>();
   const { user } = useUserDataStore();
 
-  const [initialMessages, setInitialMessages] = useState<any[]>([]);
+  const [initialMessages] = useState<any[]>([]); // TODO: Implement with Pusher
   const [chatUser, setChatUser] = useState<ChatUser | null>(null);
 
   // Parse chatUser from params if available
@@ -47,29 +48,25 @@ export default function ChatRoomScreen() {
       if (!room || !user?._id) return;
 
       try {
-        // Primo, ottieni i partecipanti della stanza
-        const { data: participants } = await supabase
-          .from("room_participants")
-          .select("user_id")
-          .eq("room_id", Number(room))
-          .neq("user_id", String(user._id));
-
-        if (participants && participants.length > 0) {
-          const otherUserId = participants[0].user_id;
-          
-        // Poi ottieni i dati dell'utente
-        const { data: userData } = await supabase
-          .from("users")
-          .select("id, first_name, last_name, avatar_url")
-          .eq("id", otherUserId)
-          .single();          if (userData) {
-            setChatUser({
-              id: userData.id,
-              name: `${userData.first_name || ''} ${userData.last_name || ''}`.trim() || 'Utente',
-              avatar: userData.avatar_url || undefined
-            });
-          }
-        }
+        // TODO: Replace with backend API call
+        // Example:
+        // const response = await apiClient.get(`/chat/rooms/${room}/participants`);
+        // const otherUser = response.data.participants.find(p => p.id !== user._id);
+        // if (otherUser) {
+        //   setChatUser({
+        //     id: otherUser.id,
+        //     name: `${otherUser.firstName || ''} ${otherUser.lastName || ''}`.trim() || 'Utente',
+        //     avatar: otherUser.avatar || undefined
+        //   });
+        // }
+        
+        console.log("📥 TODO: Load chat user from backend API", { room, userId: user._id });
+        
+        // Fallback temporaneo
+        setChatUser({
+          id: room,
+          name: `Chat ${room}`,
+        });
       } catch (error) {
         console.error('Error loading chat user:', error);
         // Fallback - usa l'ID della stanza come nome
@@ -85,26 +82,22 @@ export default function ChatRoomScreen() {
 
   useFocusEffect(
     React.useCallback(() => {
-      let active = true;
       async function loadAndMarkRead() {
         if (room && user?._id) {
-          // Carica solo i messaggi non letti per l'utente loggato
-          const res = await supabase
-            .from("messages")
-            .select("id, created_at, room_id, sender_id, content, read")
-            .eq("room_id", Number(room))
-            .or(`read.is.null,read.eq.false`)
-            .neq("sender_id", String(user._id))
-            .order("created_at", { ascending: true });
-          if (active && res.data) setInitialMessages(res.data);
+          // TODO: Replace with backend API call to fetch unread messages
+          // Example:
+          // const response = await apiClient.get(`/chat/rooms/${room}/unread-messages`);
+          // if (response.data) setInitialMessages(response.data);
+          
+          console.log("📥 TODO: Load unread messages from backend API", { room, userId: user._id });
+          
           // Marca come letti e aggiorna badge
           await markMessagesAsRead(Number(room), String(user._id));
           triggerUnreadMessagesUpdate();
         }
       }
       loadAndMarkRead();
-      return () => { active = false; };
-    }, [room, user?._id, setInitialMessages])
+    }, [room, user?._id])
   );
 
   if (!room) return null;

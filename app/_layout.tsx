@@ -1,4 +1,5 @@
-import { useGlobalChatRealtime } from "@/hooks/use-global-chat-realtime";
+// TODO: Re-enable when Pusher is integrated
+// import { useGlobalChatRealtime } from "@/hooks/use-global-chat-realtime";
 import { ThemeProvider } from "@/providers/ThemeProvider";
 import { useOnboardingStore } from "@/src/store/onboardingStore";
 import { Kanit_200ExtraLight, Kanit_400Regular, Kanit_600SemiBold, useFonts } from "@expo-google-fonts/kanit";
@@ -9,7 +10,8 @@ import { useAuthStore } from "../src/store/authStore";
 import "./globals.css";
 
 export default function RootLayout() {
-  useGlobalChatRealtime();
+  // TODO: Re-enable when Pusher is integrated
+  // useGlobalChatRealtime();
   const { isAuthenticated, isHydrated: authHydrated } = useAuthStore();
   const { hasCompletedOnboarding, isHydrated: onboardingHydrated } = useOnboardingStore();
 

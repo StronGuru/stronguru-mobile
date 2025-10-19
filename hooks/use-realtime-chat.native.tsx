@@ -1,6 +1,5 @@
-import { supabase } from "@/lib/supabase/client";
-import type { ChatMessage, MessageRow } from "@/src/types/chatTypes";
-import { mapMessageRowToChatMessage } from "@/src/types/chatTypes";
+// TODO: Integrate Pusher for realtime chat
+import type { ChatMessage } from "@/src/types/chatTypes";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 type UseRealtimeChatResult = {
@@ -17,12 +16,12 @@ export const EVENT_TYPING_TYPE = "typing";
 
 export default function useRealtimeChat(roomId: number | null): UseRealtimeChatResult {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
+  const [loading, setLoading] = useState<boolean>(false); // Set to false since we're not loading from Supabase anymore
   const [typingUsers, setTypingUsers] = useState<string[]>([]);
-  const channelRef = useRef<any>(null);
+  const pusherRef = useRef<any>(null); // Changed from channelRef to pusherRef for Pusher
   const typingTimeoutRef = useRef<{ [userId: string]: number }>({});
 
-  // fetch initial messages
+  // TODO: Fetch initial messages from your backend API instead of Supabase
   useEffect(() => {
     let mounted = true;
     const load = async () => {
@@ -33,25 +32,15 @@ export default function useRealtimeChat(roomId: number | null): UseRealtimeChatR
       }
 
       setLoading(true);
-      const res = await supabase
-        .from("messages")
-        .select("id, created_at, room_id, sender_id, content")
-        .eq("room_id", roomId)
-        .order("created_at", { ascending: true });
-
-      if (res.error) {
-        console.error("Error fetching messages", res.error);
-        if (mounted) {
-          setMessages([]);
-          setLoading(false);
-        }
-        return;
-      }
-
-      const rows = (res.data as MessageRow[]) || [];
-      const mapped = rows.map(mapMessageRowToChatMessage);
+      
+      // TODO: Replace with API call to your backend
+      // Example: const response = await apiClient.get(`/chat/rooms/${roomId}/messages`);
+      // setMessages(response.data);
+      
+      console.log("📥 TODO: Fetch messages from backend API for room", roomId);
+      
       if (mounted) {
-        setMessages(mapped);
+        setMessages([]);
         setLoading(false);
       }
     };
@@ -62,96 +51,47 @@ export default function useRealtimeChat(roomId: number | null): UseRealtimeChatR
     };
   }, [roomId]);
 
-  // subscribe to realtime broadcasts for the room
+  // TODO: Subscribe to Pusher channel for realtime updates
   useEffect(() => {
     if (!roomId) return;
 
-    const channelName = `room:${roomId}`;
-    const channel = supabase.channel(channelName);
-    channelRef.current = channel;
+    // TODO: Initialize Pusher and subscribe to room channel
+    // Example:
+    // const pusher = new Pusher(PUSHER_KEY, { cluster: PUSHER_CLUSTER });
+    // const channel = pusher.subscribe(`room-${roomId}`);
+    // pusherRef.current = channel;
+    
+    // TODO: Listen for message events
+    // channel.bind('new-message', (data: ChatMessage) => {
+    //   setMessages((prev) => {
+    //     if (prev.some((m) => m.id === data.id)) return prev;
+    //     const merged = [...prev, data];
+    //     merged.sort((a, b) => new Date(a.createdAt ?? 0).getTime() - new Date(b.createdAt ?? 0).getTime());
+    //     return merged;
+    //   });
+    // });
 
-    // broadcast handler (custom broadcast from other clients)
-    channel.on("broadcast", { event: EVENT_MESSAGE_TYPE }, (payload: any) => {
-      try {
-        const row: MessageRow = (payload && (payload.payload ?? payload.new ?? payload)) as MessageRow;
-        if (!row) return;
-        const mapped = mapMessageRowToChatMessage(row);
-        setMessages((prev) => {
-          if (prev.some((m) => m.id === mapped.id)) return prev;
-          const merged = [...prev, mapped];
-          merged.sort((a, b) => new Date(a.createdAt ?? 0).getTime() - new Date(b.createdAt ?? 0).getTime());
-          return merged;
-        });
-      } catch (err) {
-        console.error("Error handling broadcast message payload", err);
-      }
-    });
+    // TODO: Listen for typing events
+    // channel.bind('typing', (data: { userId: string; isTyping: boolean }) => {
+    //   if (data.isTyping) {
+    //     setTypingUsers((prev) => prev.includes(data.userId) ? prev : [...prev, data.userId]);
+    //     if (typingTimeoutRef.current[data.userId]) {
+    //       clearTimeout(typingTimeoutRef.current[data.userId]);
+    //     }
+    //     typingTimeoutRef.current[data.userId] = setTimeout(() => {
+    //       setTypingUsers((prev) => prev.filter(id => id !== data.userId));
+    //       delete typingTimeoutRef.current[data.userId];
+    //     }, 5000);
+    //   } else {
+    //     setTypingUsers((prev) => prev.filter(id => id !== data.userId));
+    //     if (typingTimeoutRef.current[data.userId]) {
+    //       clearTimeout(typingTimeoutRef.current[data.userId]);
+    //       delete typingTimeoutRef.current[data.userId];
+    //     }
+    //   }
+    // });
 
-    // typing events handler
-    channel.on("broadcast", { event: EVENT_TYPING_TYPE }, (payload: any) => {
-      try {
-        const { userId, isTyping } = payload.payload || payload;
-        if (!userId) return;
-
-        if (isTyping) {
-          setTypingUsers((prev) => {
-            if (prev.includes(userId)) return prev;
-            return [...prev, userId];
-          });
-
-          // Clear existing timeout for this user
-          if (typingTimeoutRef.current[userId]) {
-            clearTimeout(typingTimeoutRef.current[userId]);
-          }
-
-          // Auto-remove typing indicator after 5 seconds
-          typingTimeoutRef.current[userId] = setTimeout(() => {
-            setTypingUsers((prev) => prev.filter(id => id !== userId));
-            delete typingTimeoutRef.current[userId];
-          }, 5000);
-        } else {
-          setTypingUsers((prev) => prev.filter(id => id !== userId));
-          if (typingTimeoutRef.current[userId]) {
-            clearTimeout(typingTimeoutRef.current[userId]);
-            delete typingTimeoutRef.current[userId];
-          }
-        }
-      } catch (err) {
-        console.error("Error handling typing event", err);
-      }
-    });
-
-    // postgres_changes handler: catches INSERTs directly on messages table (robust vs different clients)
-    channel.on(
-      "postgres_changes",
-      {
-        event: "INSERT",
-        schema: "public",
-        table: "messages",
-        filter: `room_id=eq.${roomId}`
-      },
-      (payload: any) => {
-        try {
-          // payload.new is the inserted row
-          const rowFromDb: MessageRow = (payload && (payload.new ?? payload.record ?? payload)) as MessageRow;
-          if (!rowFromDb) return;
-          const mapped = mapMessageRowToChatMessage(rowFromDb);
-          setMessages((prev) => {
-            if (prev.some((m) => m.id === mapped.id)) return prev;
-            const merged = [...prev, mapped];
-            merged.sort((a, b) => new Date(a.createdAt ?? 0).getTime() - new Date(b.createdAt ?? 0).getTime());
-            return merged;
-          });
-        } catch (err) {
-          console.error("Error handling postgres_changes payload", err);
-        }
-      }
-    );
-
-    // subscribe and log status for debugging
-    channel.subscribe((status: any) => {
-      console.log(`[supabase] channel ${channelName} status:`, status);
-    });
+    console.log("🔄 TODO: Subscribe to Pusher channel for room", roomId);
 
     return () => {
       try {
@@ -159,11 +99,16 @@ export default function useRealtimeChat(roomId: number | null): UseRealtimeChatR
         Object.values(typingTimeoutRef.current).forEach(clearTimeout);
         typingTimeoutRef.current = {};
         setTypingUsers([]);
-        channel.unsubscribe();
-      } catch {
-        // ignore
+        
+        // TODO: Unsubscribe from Pusher channel
+        // if (pusherRef.current) {
+        //   pusherRef.current.unbind_all();
+        //   pusherRef.current.unsubscribe();
+        // }
+      } catch (err) {
+        console.error("Error cleaning up Pusher subscription", err);
       }
-      channelRef.current = null;
+      pusherRef.current = null;
     };
   }, [roomId]);
 
@@ -171,48 +116,25 @@ export default function useRealtimeChat(roomId: number | null): UseRealtimeChatR
     () => async (content: string, senderId: string) => {
       if (!roomId) return;
       try {
-        const insertRes = await supabase
-          .from("messages")
-          .insert({
-            room_id: roomId,
-            sender_id: senderId,
-            content
-          })
-          .select()
-          .single();
-
-        if (insertRes.error) {
-          console.error("Error inserting message", insertRes.error);
-          return;
-        }
-
-        const insertedRow = insertRes.data as MessageRow;
-
-        // broadcast through channel if available
-        const channel = channelRef.current;
-        const payload = insertedRow;
-
-        if (channel) {
-          try {
-            await channel.send({
-              type: "broadcast",
-              event: EVENT_MESSAGE_TYPE,
-              payload
-            });
-            // append locally immediately to show message without waiting for broadcast.
-            // broadcast handler is resilient to duplicates (it checks id), so this is safe.
-            setMessages((prev) => {
-              const mapped = mapMessageRowToChatMessage(insertedRow);
-              if (prev.some((m) => m.id === mapped.id)) return prev;
-              return [...prev, mapped].sort((a, b) => new Date(a.createdAt ?? 0).getTime() - new Date(b.createdAt ?? 0).getTime());
-            });
-          } catch (err) {
-            console.error("Error broadcasting message", err);
-          }
-        } else {
-          // if no channel, append locally (avoids waiting for broadcast)
-          setMessages((prev) => [...prev, mapMessageRowToChatMessage(insertedRow)]);
-        }
+        // TODO: Send message via your backend API instead of Supabase
+        // Example:
+        // const response = await apiClient.post(`/chat/rooms/${roomId}/messages`, {
+        //   content,
+        //   senderId
+        // });
+        // const newMessage = response.data;
+        
+        // Optimistic update (optional)
+        // const tempMessage: ChatMessage = {
+        //   id: Date.now().toString(),
+        //   content,
+        //   senderId,
+        //   roomId,
+        //   createdAt: new Date().toISOString(),
+        // };
+        // setMessages((prev) => [...prev, tempMessage]);
+        
+        console.log("📤 TODO: Send message to backend API", { roomId, content, senderId });
       } catch (err) {
         console.error("sendMessage unexpected error", err);
       }
@@ -222,18 +144,13 @@ export default function useRealtimeChat(roomId: number | null): UseRealtimeChatR
 
   const sendTyping = useMemo(
     () => (userId: string, isTyping: boolean) => {
-      const channel = channelRef.current;
-      if (!channel || !userId) return;
-
-      try {
-        channel.send({
-          type: "broadcast",
-          event: EVENT_TYPING_TYPE,
-          payload: { userId, isTyping }
-        });
-      } catch (err) {
-        console.error("Error sending typing event", err);
-      }
+      // TODO: Send typing event via Pusher
+      // Example:
+      // const channel = pusherRef.current;
+      // if (!channel || !userId) return;
+      // channel.trigger('client-typing', { userId, isTyping });
+      
+      console.log("⌨️ TODO: Send typing event via Pusher", { userId, isTyping });
     },
     []
   );
