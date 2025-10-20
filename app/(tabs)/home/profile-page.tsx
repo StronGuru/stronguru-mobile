@@ -423,6 +423,7 @@ export default function ProfilePage() {
                           onChangeText={field.onChange}
                           autoCapitalize="characters"
                           style={{ fontFamily: "Kanit_200ExtraLight" }}
+                          maxLength={2}
                         />
                         {fieldState.error && <AppText className="text-red-500 text-xs mt-1">{fieldState.error.message}</AppText>}
                       </View>
