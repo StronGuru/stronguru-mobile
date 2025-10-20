@@ -160,7 +160,7 @@ export default function Settings() {
           </View>
         </View>
 
-        {/* Community Section */}
+        {/* Terms and Privacy Section */}
         <View className="mb-8">
           <AppText w="semi" className="text-xl  mb-4">
             Termini e Privacy
