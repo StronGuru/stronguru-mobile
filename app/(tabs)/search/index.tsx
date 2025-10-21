@@ -97,10 +97,6 @@ export default function SearchScreen() {
     return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
   };
 
-  const getBackgroundColor = (professional: Professional): string => {
-    return professional.ambassador ? "#8b5cf6" : "#64748b";
-  };
-
   // ✅ Helper per ottenere immagine background in base alla specializzazione
   const getBackgroundImage = (specializations: string[]) => {
     // Priorità: nutritionist > trainer > psychologist
@@ -158,11 +154,8 @@ export default function SearchScreen() {
             source={backgroundImage}
             resizeMode="cover"
             className="p-4 items-center min-h-[140px]"
-            imageStyle={{ borderTopLeftRadius: 12, borderTopRightRadius: 12, opacity: 0.4 }}
+            imageStyle={{ borderTopLeftRadius: 10, borderTopRightRadius: 10, opacity: 0.4 }}
           >
-            {/* Fallback color layer se no immagine */}
-            {!backgroundImage && <View className="absolute inset-0 rounded-t-xl" style={{ backgroundColor: getBackgroundColor(professional) }} />}
-
             {/* Ambassador Badge */}
             {professional.ambassador === true && (
               <View className="absolute top-4 left-4 w-8 h-8 rounded-full items-center justify-center bg-orange-400 shadow-md">
@@ -172,14 +165,13 @@ export default function SearchScreen() {
 
             {/* Avatar */}
             <View
-              className={`w-[100px] h-[100px] rounded-full items-center justify-center mb-1 mt-2 border-2 ${
+              className={`w-[100px] h-[100px] rounded-full items-center justify-center mb-1 mt-2 border-2 bg-muted-foreground ${
                 professional.specializations.includes("nutritionist")
                   ? "border-primary"
                   : professional.specializations.includes("psychologist")
                     ? "border-blue-500"
                     : "border-red-500"
               } shadow-md`}
-              style={{ backgroundColor: getBackgroundColor(professional) }}
             >
               {professional.profileImg ? (
                 <Image
@@ -200,7 +192,7 @@ export default function SearchScreen() {
           </ImageBackground>
 
           {/* ✅ Bottom section - NO background image */}
-          <View className="items-center mt-4">
+          <View className="items-center mt-2">
             <AppText w="semi" className="text-lg mb-2 text-center">
               {professional.firstName} {professional.lastName}
             </AppText>
@@ -255,7 +247,7 @@ export default function SearchScreen() {
                 const filterOption = filterOptions.find((opt) => opt.value === filterValue);
                 return (
                   <View key={`filter-${filterValue}-${index}`} className="flex-row items-center bg-secondary border border-border rounded-full px-3 py-1">
-                    <AppText w="semi" className="text-secondary-foreground text-sm mr-2">
+                    <AppText w="semi" className="text-secondary-foreground text-md mr-2">
                       {filterOption?.label}
                     </AppText>
                     <TouchableOpacity onPress={() => removeFilter(filterValue)}>
@@ -315,31 +307,47 @@ export default function SearchScreen() {
               <TouchableOpacity className="bg-popover rounded-xl p-4 shadow-sm mx-8 w-[85vw]" activeOpacity={1}>
                 <View className="flex-row justify-between items-center mb-4">
                   <AppText w="semi" className="text-lg">
-                    Filtra Professionisti
+                    Filtra per:
                   </AppText>
                   <TouchableOpacity onPress={() => setOpenFilter(false)}>
                     <X size={24} color="#64748b" />
                   </TouchableOpacity>
                 </View>
-
-                <View className="flex gap-2 items-center justify-center p-6">
+                <AppText>Professione</AppText>
+                <View className="flex-row gap-2 items-center justify-around p-4">
                   {filterOptions.map((option) => (
                     <TouchableOpacity
                       key={option.value}
-                      className={`px-4 py-2 w-[50%] rounded-lg border ${
-                        selectedFilters.includes(option.value) ? "bg-green-100 border-primary" : "bg-transparent border-border"
-                      }`}
+                      className={`px-4 py-2 w-[50%] rounded-full border  ${
+                        selectedFilters.includes(option.value) ? "bg-primary border-primary" : "bg-transparent border-border "
+                      } `}
                       onPress={() => handleFilterSelect(option)}
                     >
                       <AppText
                         w="semi"
-                        className={`text-lg ${selectedFilters.includes(option.value) ? "text-primary font-medium" : "text-popover-foreground"}`}
+                        className={`text-lg text-center ${selectedFilters.includes(option.value) ? "text-white font-medium" : "text-popover-foreground"}`}
                       >
                         {option.label}
                       </AppText>
                     </TouchableOpacity>
                   ))}
                 </View>
+
+                {selectedFilters.length > 0 && (
+                  <View className="mt-4 px-4 ms-auto">
+                    <TouchableOpacity
+                      className=" active:opacity-80"
+                      onPress={() => {
+                        console.log("🔄 Resetting filters");
+                        setSelectedFilters([]);
+                      }}
+                    >
+                      <AppText w="semi" className="text-destructive underline text-base">
+                        Reset Filtri
+                      </AppText>
+                    </TouchableOpacity>
+                  </View>
+                )}
               </TouchableOpacity>
             </TouchableOpacity>
           </Modal>
