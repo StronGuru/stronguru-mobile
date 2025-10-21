@@ -1,12 +1,13 @@
 // app/ProfessionalDetails.tsx
 import apiClient from "@/api/apiClient";
 import AppText from "@/components/ui/AppText";
+import Card from "@/components/ui/Card";
 import { getOrCreateRoom } from "@/src/services/chatService.native";
 import { useUserDataStore } from "@/src/store/userDataStore";
 import { router, useLocalSearchParams } from "expo-router";
-import { Award, Book, Brain, Building2, Dumbbell, Mail, Phone, Rocket, Salad } from "lucide-react-native";
+import { Award, Book, Building2, ExternalLink, Mail, MapPin, Phone, Rocket, X } from "lucide-react-native";
 import React, { useEffect, useState } from "react";
-import { ActivityIndicator, Alert, Image, SafeAreaView, ScrollView, Text, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, Alert, Image, ImageBackground, Linking, Modal, SafeAreaView, ScrollView, Text, TouchableOpacity, View } from "react-native";
 
 interface Address {
   street: string;
@@ -15,8 +16,6 @@ interface Address {
   province: string;
   country: string;
 }
-
-type BadgeType = "salad" | "dumbbell" | "brain";
 
 type Professional = {
   id: string;
@@ -51,11 +50,18 @@ interface Qualification {
   completionDate: string;
 }
 
+const specializationLabels: Record<string, string> = {
+  nutritionist: "Nutrizionista",
+  trainer: "Allenatore",
+  psychologist: "Psicologo"
+};
+
 export default function ProfessionalDetails() {
   const [professional, setProfessional] = useState<Professional | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [chatLoading, setChatLoading] = useState<boolean>(false);
   const { user } = useUserDataStore();
+  const [imageModalVisible, setImageModalVisible] = useState<boolean>(false);
 
   // Ottieni l'ID dai parametri di ricerca con Expo Router
   const { professionalId } = useLocalSearchParams<{ professionalId: string }>();
@@ -81,33 +87,17 @@ export default function ProfessionalDetails() {
     fetchProfessionals();
   }, [professionalId]);
 
-  const getBadgesFromSpecializations = (specializations: string[]): BadgeType[] => {
-    const badges: BadgeType[] = [];
-
-    if (specializations.includes("trainer")) {
-      badges.push("dumbbell");
-    }
-    if (specializations.includes("psychologist")) {
-      badges.push("brain");
-    }
+  // ✅ Helper per ottenere immagine background in base alla specializzazione
+  const getBackgroundImage = (specializations: string[]) => {
+    // Priorità: nutritionist > trainer > psychologist
     if (specializations.includes("nutritionist")) {
-      badges.push("salad");
+      return require("@/assets/images/bg-nutrition.png");
+    } else if (specializations.includes("trainer")) {
+      return require("@/assets/images/bg-training.png");
+    } else if (specializations.includes("psychologist")) {
+      return require("@/assets/images/bg-psychology.png");
     }
-
-    return badges;
-  };
-
-  const renderBadgeIcon = (badge: BadgeType) => {
-    switch (badge) {
-      case "dumbbell":
-        return <Dumbbell size={20} color="white" />;
-      case "brain":
-        return <Brain size={20} color="white" />;
-      case "salad":
-        return <Salad size={20} color="white" />;
-      default:
-        return null;
-    }
+    return null; // Fallback a colore solido
   };
 
   const getInitials = (firstName: string, lastName: string): string => {
@@ -140,7 +130,7 @@ export default function ProfessionalDetails() {
     );
   }
 
-  const badges = getBadgesFromSpecializations(professional.specializations);
+  const backgroundImage = getBackgroundImage(professional.specializations);
 
   // Handler per il click su "Chatta con il professionista"
   const handleChatPress = async () => {
@@ -165,84 +155,85 @@ export default function ProfessionalDetails() {
     <SafeAreaView className="flex-1 bg-background ">
       <ScrollView className="flex-1" contentContainerStyle={{ padding: 16 }}>
         {/* Header verde con immagine e nome */}
-        <View className="bg-primary shadow-sm rounded-2xl p-6 mb-6 items-center">
+        <ImageBackground
+          source={backgroundImage}
+          resizeMode="cover"
+          className="p-0 mb-4 items-center min-h-[140px] border border-border shadow-sm rounded-2xl  overflow-hidden"
+          imageStyle={{ borderRadius: 12, opacity: 0.4 }}
+        >
           {/* Avatar */}
-          <View className="w-24 h-24 rounded-full items-center justify-center mb-4 bg-muted-foreground overflow-hidden">
+          {/* ✅ Avatar cliccabile */}
+          <TouchableOpacity
+            onPress={() => professional.profileImg && setImageModalVisible(true)}
+            activeOpacity={0.8}
+            className={`w-52 h-52 rounded-full items-center justify-center my-8 bg-muted-foreground shadow-lg overflow-hidden border-2 ${
+              professional.specializations.includes("nutritionist")
+                ? "border-primary"
+                : professional.specializations.includes("psychologist")
+                  ? "border-blue-500"
+                  : "border-red-500"
+            }`}
+          >
             {professional.profileImg ? (
-              <Image source={{ uri: professional.profileImg }} className="w-24 h-24 rounded-full" resizeMode="cover" />
+              <Image source={{ uri: professional.profileImg }} className="w-52 h-52 rounded-full" resizeMode="cover" />
             ) : (
-              <Text className="text-3xl font-bold text-primary-foreground">{getInitials(professional.firstName, professional.lastName)}</Text>
+              <Text className="text-5xl font-bold text-white">{getInitials(professional.firstName, professional.lastName)}</Text>
             )}
-          </View>
+          </TouchableOpacity>
 
-          {/* Nome e Cognome */}
-          <AppText w="bold" className="text-3xl font-bold text-white text-center mb-4">
-            {professional.firstName} {professional.lastName}
-          </AppText>
+          <Card className="w-full shadow-sm rounded-b-none px-6 ">
+            {/* Nome e Cognome */}
+            <AppText w="bold" className="text-3xl font-bold text-center ">
+              {professional.firstName} {professional.lastName}
+            </AppText>
 
-          {/* Badges Specializzazioni */}
-          <View className="flex-row gap-3">
-            {badges.map((badge: BadgeType, index: number) => (
-              <View key={badge} className="w-12 h-12 bg-accent rounded-full items-center justify-center">
-                {renderBadgeIcon(badge)}
+            {professional.specializations?.length === 1 ? (
+              <AppText w="semi" className="text-lg text-center">
+                {specializationLabels[professional.specializations[0]] || professional.specializations[0]}
+              </AppText>
+            ) : (
+              <View className="text-lg flex flex-wrap gap-1">
+                {professional.specializations!.map((specialization, index) => (
+                  <AppText w="semi" key={index} className="whitespace-nowrap">
+                    {specializationLabels[specialization] || specialization}
+                    {index < professional.specializations!.length - 1 && ","}
+                  </AppText>
+                ))}
               </View>
-            ))}
-          </View>
-          <View className="mt-4">
-            <TouchableOpacity onPress={handleChatPress} className="bg-secondary px-4 py-2 rounded-xl" disabled={chatLoading}>
-              {chatLoading ? (
-                <ActivityIndicator size="small" color="#fff" />
-              ) : (
-                <AppText w="semi" className=" text-center">
-                  Chatta con il professionista
-                </AppText>
-              )}
-            </TouchableOpacity>
-          </View>
+            )}
+            <View className="flex-row justify-center items-center gap-1">
+              <MapPin size={15} color={"red"} />
+              <AppText className="text-center ">
+                {professional.address?.city || "N/A"}, {professional.address?.province || "N/A"}
+              </AppText>
+            </View>
+
+            <View className="mt-2">
+              <TouchableOpacity onPress={handleChatPress} className="bg-primary px-4 py-2 rounded-xl" disabled={chatLoading}>
+                {chatLoading ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <AppText w="semi" className="text-white text-center">
+                    Chatta con il professionista
+                  </AppText>
+                )}
+              </TouchableOpacity>
+            </View>
+          </Card>
           {professional.ambassador === true && (
-            <View className="absolute top-4 left-4 w-[120px] h-10 rounded-full items-center justify-center bg-orange-400">
+            <View className="absolute top-2 left-2 w-[120px] h-10 rounded-full items-center justify-center bg-orange-400">
               <View className="flex-row items-center">
                 <Rocket size={20} color="white" />
-                <AppText w="bold" className="text-white text-md">
+                <AppText w="bold" className="text-white text-md ms-1">
                   Ambassador
                 </AppText>
               </View>
             </View>
           )}
-        </View>
-
-        {/* Informazioni personali */}
-        <View className="bg-card rounded-2xl p-6 mb-4 shadow-sm">
-          <AppText w="semi" className="text-2xl text-primary mb-4">
-            Informazioni
-          </AppText>
-
-          <View className="space-y-3">
-            <View className="flex-row justify-between items-center py-2">
-              <AppText className="text-muted-foreground">Data di nascita</AppText>
-              <AppText>{formatDate(professional.dateOfBirth)}</AppText>
-            </View>
-
-            <View className="h-px bg-border" />
-
-            <View className="flex-row justify-between items-center py-2">
-              <AppText className="text-muted-foreground">Genere</AppText>
-              <AppText>{professional.gender === "male" ? "Uomo" : professional.gender === "female" ? "Donna" : "Non specificato"}</AppText>
-            </View>
-
-            <View className="h-px bg-border " />
-
-            <View className="flex-row justify-between items-center py-2 ">
-              <AppText className="text-muted-foreground">Posizione</AppText>
-              <AppText>
-                {professional.address?.city || "N/A"}, {professional.address?.province || "N/A"}
-              </AppText>
-            </View>
-          </View>
-        </View>
+        </ImageBackground>
 
         {/* Contatti */}
-        <View className="bg-card rounded-2xl p-6 shadow-sm">
+        <Card className="">
           <AppText w="semi" className="text-2xl text-primary mb-4">
             Contatti
           </AppText>
@@ -272,10 +263,10 @@ export default function ProfessionalDetails() {
               </View>
             </View>
           </View>
-        </View>
+        </Card>
         {/* Certificazioni */}
         {professional.certifications && professional.certifications.length > 0 && (
-          <View className="bg-card rounded-2xl p-6 shadow-sm mt-4">
+          <Card className=" mt-4">
             <View className="flex-row items-center mb-4">
               <Award size={24} color="#10b981" />
               <AppText w="semi" className="text-2xl text-primary ml-2">
@@ -331,8 +322,12 @@ export default function ProfessionalDetails() {
                       <>
                         <View className="h-px bg-border" />
                         <View className="flex-row justify-between items-center py-1">
-                          <AppText className="text-muted-foreground">URL</AppText>
-                          <AppText className=" text-primary underline" numberOfLines={1}>
+                          <View className="flex-row items-center gap-1">
+                            <AppText className="text-muted-foreground">Link</AppText>
+                            <ExternalLink size={13} color="#64748b" />
+                          </View>
+
+                          <AppText className=" text-primary underline" numberOfLines={1} onPress={() => Linking.openURL(cert.certificationUrl)}>
                             {cert.certificationUrl}
                           </AppText>
                         </View>
@@ -342,12 +337,12 @@ export default function ProfessionalDetails() {
                 </View>
               ))}
             </View>
-          </View>
+          </Card>
         )}
 
         {/* Qualifications */}
         {professional.qualifications && professional.qualifications.length > 0 && (
-          <View className="bg-card rounded-2xl p-6 shadow-sm mt-4">
+          <Card className="mt-4">
             <View className="flex-row items-center mb-4">
               <Book size={24} color="#10b981" />
               <AppText w="semi" className="text-2xl text-primary ml-2">
@@ -387,9 +382,34 @@ export default function ProfessionalDetails() {
                 </View>
               ))}
             </View>
-          </View>
+          </Card>
         )}
       </ScrollView>
+      {/* ✅ Modal per preview immagine a schermo intero */}
+      <Modal visible={imageModalVisible} transparent={true} animationType="fade" onRequestClose={() => setImageModalVisible(false)}>
+        <View className="flex-1 bg-black/95 justify-center items-center">
+          {/* Pulsante chiudi */}
+          <TouchableOpacity
+            onPress={() => setImageModalVisible(false)}
+            className="absolute top-12 right-4 w-10 h-10 bg-white/20 rounded-full items-center justify-center z-10"
+          >
+            <X size={24} color="white" />
+          </TouchableOpacity>
+
+          {/* Immagine full-size */}
+          {professional?.profileImg && <Image source={{ uri: professional.profileImg }} className="w-full h-full" resizeMode="contain" />}
+
+          {/* Info professionale sotto (opzionale) */}
+          <View className="absolute bottom-12 left-0 right-0 px-6">
+            <View className="bg-black/60 rounded-2xl p-4 backdrop-blur-sm">
+              <AppText w="bold" className="text-white text-2xl text-center">
+                {professional?.firstName} {professional?.lastName}
+              </AppText>
+              <AppText className="text-white/80 text-center mt-1">{professional?.specializations.map((s) => specializationLabels[s] || s).join(", ")}</AppText>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }

@@ -234,7 +234,7 @@ export default function SearchScreen() {
                 fontSize: 16,
                 fontFamily: "Kanit_400Regular"
               }}
-              placeholder="Cerca professionisti..."
+              placeholder="Cerca professionisti per nome/città"
               placeholderTextColor="#9ca3af"
               value={searchQuery}
               onChangeText={setSearchQuery}
