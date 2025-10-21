@@ -1,7 +1,8 @@
+import AppText from "@/components/ui/AppText";
 import { useRouter } from "expo-router";
 import { EyeIcon, EyeOffIcon } from "lucide-react-native";
 import React, { useState } from "react";
-import { ActivityIndicator, Image, KeyboardAvoidingView, Platform, SafeAreaView, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, Image, KeyboardAvoidingView, Platform, SafeAreaView, TextInput, TouchableOpacity, View } from "react-native";
 import { useAuthStore } from "../../src/store/authStore";
 import { SignInRequest } from "../../src/types/authTypes";
 
@@ -34,18 +35,22 @@ export default function LoginScreen() {
   return (
     <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} className="flex-1">
       <SafeAreaView className="flex-1 bg-background">
-        <View className="flex-1 justify-center items-center">
+        <View className="flex-1 justify-center items-center gap-5">
           {!loading ? (
             <>
-              <View className="items-center mb-6 ">
-                <Image source={require("../../assets/images/logo.png")} className="w-80 h-25" resizeMode="contain" />
-                <Text className="text-lg font-bold text-foreground">Accedi al tuo account</Text>
+              <View className="items-center gap-4">
+                <Image source={require("../../assets/images/logo.png")} className="w-80 h-10" resizeMode="contain" />
+                <AppText w="semi" className="text-lg ">
+                  Accedi al tuo account
+                </AppText>
               </View>
 
               <View className="w-full max-w-80 px-4">
                 {/* Email Input */}
                 <View className="mb-4">
-                  <Text className="text-sm font-medium  text-foreground mb-2">Email</Text>
+                  <AppText w="semi" className="text-md mb-2">
+                    Email
+                  </AppText>
                   <TextInput
                     className="bg-slate-100 rounded-lg p-3 textalign-center border border-slate-200"
                     placeholder="Inserisci la tua email"
@@ -57,12 +62,15 @@ export default function LoginScreen() {
                     keyboardType="email-address"
                     autoCapitalize="none"
                     editable={!loading}
+                    style={{ fontFamily: "Kanit_400Regular" }}
                   />
                 </View>
 
                 {/* Password Input */}
                 <View className="mb-4">
-                  <Text className="text-sm font-medium  text-foreground mb-2">Password</Text>
+                  <AppText w="semi" className="text-md mb-2">
+                    Password
+                  </AppText>
                   <View className="relative">
                     <TextInput
                       className="bg-slate-100 rounded-lg p-3 textalign-center pr-10 text-base border border-slate-200"
@@ -74,6 +82,7 @@ export default function LoginScreen() {
                       }}
                       secureTextEntry={!showPassword}
                       editable={!loading}
+                      style={{ fontFamily: "Kanit_400Regular" }}
                     />
                     <TouchableOpacity className="absolute right-3 top-3" onPress={() => setShowPassword(!showPassword)}>
                       {showPassword ? <EyeOffIcon size={20} color="#64748b" /> : <EyeIcon size={20} color="#64748b" />}
@@ -81,31 +90,33 @@ export default function LoginScreen() {
                   </View>
 
                   {/* Forgot Password Link */}
-                  <TouchableOpacity onPress={() => router.push("/(auth)/forgot-password")} className="mt-2">
-                    <Text className=" text-foreground text-sm tracking-wide">Password dimenticata?</Text>
+                  <TouchableOpacity onPress={() => router.push("/(auth)/forgot-password")} className="mt-4">
+                    <AppText className="text-md underline tracking-wide">Password dimenticata?</AppText>
                   </TouchableOpacity>
                 </View>
 
                 {/* Error Message */}
                 {error && (
                   <View className="mb-2">
-                    <Text className="text-center color-red-500 text-sm">{error}</Text>
+                    <AppText className="text-center color-red-500 text-sm">{error}</AppText>
                   </View>
                 )}
 
                 {/* Login Button */}
                 <TouchableOpacity className="bg-primary rounded-lg p-3 items-center mt-4" onPress={handleSubmit} disabled={loading}>
-                  <Text className="color-white text-base font-semibold">Accedi</Text>
+                  <AppText w="bold" className="text-white text-lg">
+                    Accedi
+                  </AppText>
                 </TouchableOpacity>
 
                 {/* Register Link */}
                 <View className="mt-9 items-center">
-                  <Text className=" text-foreground text-md">
+                  <AppText w="semi" className="text-md">
                     Non hai un account?{" "}
-                    <Text className="text-primary font-bold underline" onPress={() => router.push("/(auth)/signup")}>
+                    <AppText w="bold" className="text-primary underline" onPress={() => router.push("/(auth)/signup")}>
                       Registrati
-                    </Text>
-                  </Text>
+                    </AppText>
+                  </AppText>
                 </View>
               </View>
             </>
