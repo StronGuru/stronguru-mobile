@@ -1,31 +1,37 @@
-// TODO: Integrate Pusher for realtime chat
+import apiClient from "@/api/apiClient";
+import pusherClient from "@/api/pusherChannelsService";
 import type { ChatMessage } from "@/src/types/chatTypes";
+import type { Channel } from "pusher-js";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 type UseRealtimeChatResult = {
   messages: ChatMessage[];
   loading: boolean;
-  sendMessage: (content: string, senderId: string) => Promise<void>;
+  sendMessage: (content: string, senderId: string, recipientUserId?: string) => Promise<void>;
   clear: () => void;
   typingUsers: string[];
   sendTyping: (userId: string, isTyping: boolean) => void;
 };
 
-export const EVENT_MESSAGE_TYPE = "message";
+export const EVENT_MESSAGE_TYPE = "new-message";
 export const EVENT_TYPING_TYPE = "typing";
 
-export default function useRealtimeChat(roomId: number | null): UseRealtimeChatResult {
+export default function useRealtimeChat(
+  conversationId: string | number | null,
+  currentUserId?: string | null,
+  isScreenFocused?: boolean
+): UseRealtimeChatResult {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [loading, setLoading] = useState<boolean>(false); // Set to false since we're not loading from Supabase anymore
+  const [loading, setLoading] = useState<boolean>(false);
   const [typingUsers, setTypingUsers] = useState<string[]>([]);
-  const pusherRef = useRef<any>(null); // Changed from channelRef to pusherRef for Pusher
-  const typingTimeoutRef = useRef<{ [userId: string]: number }>({});
+  const channelRef = useRef<Channel | null>(null);
+  const typingTimeoutRef = useRef<{ [userId: string]: ReturnType<typeof setTimeout> }>({});
 
-  // TODO: Fetch initial messages from your backend API instead of Supabase
+  // Fetch initial messages
   useEffect(() => {
     let mounted = true;
     const load = async () => {
-      if (!roomId) {
+      if (!conversationId) {
         setMessages([]);
         setLoading(false);
         return;
@@ -33,15 +39,40 @@ export default function useRealtimeChat(roomId: number | null): UseRealtimeChatR
 
       setLoading(true);
       
-      // TODO: Replace with API call to your backend
-      // Example: const response = await apiClient.get(`/chat/rooms/${roomId}/messages`);
-      // setMessages(response.data);
-      
-      console.log("📥 TODO: Fetch messages from backend API for room", roomId);
-      
-      if (mounted) {
-        setMessages([]);
-        setLoading(false);
+      try {
+        const response = await apiClient.get(`/conversations/${conversationId}/messages`);
+        const messagesData = response.data?.messages || response.data || [];
+        
+        if (mounted && messagesData.length > 0) {
+          // Map response to ChatMessage format
+          const mappedMessages = messagesData.map((msg: any) => {
+            // senderId può essere un oggetto { _id, firstName, lastName } o una stringa
+            let senderId: string;
+            if (typeof msg.senderId === 'object' && msg.senderId !== null) {
+              senderId = msg.senderId._id || msg.senderId.id;
+            } else {
+              senderId = msg.senderId || msg.sender?._id || msg.from?._id || '';
+            }
+            
+            const mapped = {
+              id: msg._id || msg.id || msg.messageId,
+              createdAt: msg.createdAt || msg.timestamp,
+              roomId: conversationId,
+              senderId: senderId,
+              content: msg.message || msg.body || msg.content,
+              read: msg.status === 'read' || msg.read || msg.isRead
+            };
+            return mapped;
+          });
+          setMessages(mappedMessages);
+        } else if (mounted) {
+          setMessages([]);
+        }
+      } catch (error) {
+        console.error("❌ Error fetching messages:", error);
+        if (mounted) setMessages([]);
+      } finally {
+        if (mounted) setLoading(false);
       }
     };
 
@@ -49,49 +80,111 @@ export default function useRealtimeChat(roomId: number | null): UseRealtimeChatR
     return () => {
       mounted = false;
     };
-  }, [roomId]);
+  }, [conversationId]);
 
-  // TODO: Subscribe to Pusher channel for realtime updates
+  // Subscribe to Pusher channel for realtime updates
   useEffect(() => {
-    if (!roomId) return;
+    if (!conversationId) return;
 
-    // TODO: Initialize Pusher and subscribe to room channel
-    // Example:
-    // const pusher = new Pusher(PUSHER_KEY, { cluster: PUSHER_CLUSTER });
-    // const channel = pusher.subscribe(`room-${roomId}`);
-    // pusherRef.current = channel;
+    const channelName = `private-conversation-${conversationId}`;
+    let channel: any = null;
+    let hasSetupChannel = false;
     
-    // TODO: Listen for message events
-    // channel.bind('new-message', (data: ChatMessage) => {
-    //   setMessages((prev) => {
-    //     if (prev.some((m) => m.id === data.id)) return prev;
-    //     const merged = [...prev, data];
-    //     merged.sort((a, b) => new Date(a.createdAt ?? 0).getTime() - new Date(b.createdAt ?? 0).getTime());
-    //     return merged;
-    //   });
-    // });
+    const setupChannel = () => {
+      if (hasSetupChannel) return;
+      hasSetupChannel = true;
+      
+      channel = pusherClient.subscribe(channelName);
+      channelRef.current = channel;
+      
+      channel.bind('pusher:subscription_succeeded', () => {
+        // Subscribed successfully
+      });
+      
+      channel.bind('pusher:subscription_error', (error: any) => {
+        console.error("❌ Subscription error:", error);
+      });
+      
+      // Listen for new messages
+      channel.bind(EVENT_MESSAGE_TYPE, async (data: any) => {
+      
+      const newMessage: ChatMessage = {
+        id: data.messageId || data.id,
+        createdAt: data.timestamp || data.createdAt,
+        roomId: conversationId,
+        senderId: data.senderId,
+        content: data.message || data.content,
+        read: data.read
+      };
+      
+      setMessages((prev) => {
+        // Prevent duplicates
+        if (prev.some((m) => m.id === newMessage.id)) return prev;
+        const merged = [...prev, newMessage];
+        merged.sort((a, b) => 
+          new Date(a.createdAt ?? 0).getTime() - new Date(b.createdAt ?? 0).getTime()
+        );
+        return merged;
+      });
 
-    // TODO: Listen for typing events
-    // channel.bind('typing', (data: { userId: string; isTyping: boolean }) => {
-    //   if (data.isTyping) {
-    //     setTypingUsers((prev) => prev.includes(data.userId) ? prev : [...prev, data.userId]);
-    //     if (typingTimeoutRef.current[data.userId]) {
-    //       clearTimeout(typingTimeoutRef.current[data.userId]);
-    //     }
-    //     typingTimeoutRef.current[data.userId] = setTimeout(() => {
-    //       setTypingUsers((prev) => prev.filter(id => id !== data.userId));
-    //       delete typingTimeoutRef.current[data.userId];
-    //     }, 5000);
-    //   } else {
-    //     setTypingUsers((prev) => prev.filter(id => id !== data.userId));
-    //     if (typingTimeoutRef.current[data.userId]) {
-    //       clearTimeout(typingTimeoutRef.current[data.userId]);
-    //       delete typingTimeoutRef.current[data.userId];
-    //     }
-    //   }
-    // });
+      // Se la chat è aperta e il messaggio non è mio, marcalo come letto automaticamente
+      if (isScreenFocused && currentUserId && String(data.senderId) !== String(currentUserId)) {
+        try {
+          const messageId = data.messageId || data.id;
+          
+          const { markMessageAsRead, invalidateUnreadCache } = await import("@/src/services/chatService.native");
+          await markMessageAsRead(messageId);
+          
+          // Invalida cache e aggiorna badge
+          invalidateUnreadCache();
+          const { triggerUnreadMessagesUpdate } = await import("@/hooks/use-global-chat-realtime");
+          triggerUnreadMessagesUpdate();
+        } catch (err) {
+          console.error("❌ Error auto-marking message as read:", err);
+        }
+      }
+    });
 
-    console.log("🔄 TODO: Subscribe to Pusher channel for room", roomId);
+    // Listen for typing events
+    channel.bind(EVENT_TYPING_TYPE, (data: { userId: string; isTyping: boolean; senderName?: string }) => {
+      
+      if (data.isTyping) {
+        setTypingUsers((prev) => 
+          prev.includes(data.userId) ? prev : [...prev, data.userId]
+        );
+        
+        // Clear existing timeout
+        if (typingTimeoutRef.current[data.userId]) {
+          clearTimeout(typingTimeoutRef.current[data.userId]);
+        }
+        
+        // Auto-remove typing indicator after 5 seconds
+        typingTimeoutRef.current[data.userId] = setTimeout(() => {
+          setTypingUsers((prev) => prev.filter(id => id !== data.userId));
+          delete typingTimeoutRef.current[data.userId];
+        }, 5000);
+      } else {
+        setTypingUsers((prev) => prev.filter(id => id !== data.userId));
+        if (typingTimeoutRef.current[data.userId]) {
+          clearTimeout(typingTimeoutRef.current[data.userId]);
+          delete typingTimeoutRef.current[data.userId];
+        }
+      }
+    });
+    };
+    
+    // Setup iniziale del canale
+    setupChannel();
+    
+    // Gestione riconnessione Pusher
+    const handleConnectionStateChange = (states: any) => {
+      if (states.current === 'connected' && states.previous !== 'connected') {
+        hasSetupChannel = false; // Reset flag
+        setupChannel();
+      }
+    };
+    
+    pusherClient.connection.bind('state_change', handleConnectionStateChange);
 
     return () => {
       try {
@@ -100,57 +193,58 @@ export default function useRealtimeChat(roomId: number | null): UseRealtimeChatR
         typingTimeoutRef.current = {};
         setTypingUsers([]);
         
-        // TODO: Unsubscribe from Pusher channel
-        // if (pusherRef.current) {
-        //   pusherRef.current.unbind_all();
-        //   pusherRef.current.unsubscribe();
-        // }
+        // Remove connection listener
+        pusherClient.connection.unbind('state_change', handleConnectionStateChange);
+        
+        // Unsubscribe from Pusher channel
+        if (channelRef.current) {
+          channelRef.current.unbind_all();
+          channelRef.current.unsubscribe();
+        }
       } catch (err) {
-        console.error("Error cleaning up Pusher subscription", err);
+        console.error("❌ Error cleaning up Pusher subscription", err);
       }
-      pusherRef.current = null;
+      channelRef.current = null;
     };
-  }, [roomId]);
+  }, [conversationId, currentUserId, isScreenFocused]);
 
   const sendMessage = useMemo(
-    () => async (content: string, senderId: string) => {
-      if (!roomId) return;
+    () => async (content: string, senderId: string, recipientUserId?: string) => {
+      if (!conversationId) return;
+      if (!content.trim()) return;
+      
       try {
-        // TODO: Send message via your backend API instead of Supabase
-        // Example:
-        // const response = await apiClient.post(`/chat/rooms/${roomId}/messages`, {
-        //   content,
-        //   senderId
-        // });
-        // const newMessage = response.data;
+        // NO optimistic update - Pusher è abbastanza veloce (50-200ms)
+        // Questo elimina completamente i duplicati visibili
         
-        // Optimistic update (optional)
-        // const tempMessage: ChatMessage = {
-        //   id: Date.now().toString(),
-        //   content,
-        //   senderId,
-        //   roomId,
-        //   createdAt: new Date().toISOString(),
-        // };
-        // setMessages((prev) => [...prev, tempMessage]);
+        // Send to backend con il payload corretto
+        const payload = {
+          conversationId,
+          message: content,
+          recipientUserId: recipientUserId || "" // Required by backend
+        };
         
-        console.log("📤 TODO: Send message to backend API", { roomId, content, senderId });
+        await apiClient.post("/messages", payload);
       } catch (err) {
-        console.error("sendMessage unexpected error", err);
+        console.error("❌ Error sending message:", err);
+        // Mostra errore all'utente se necessario
+        throw err;
       }
     },
-    [roomId]
+    [conversationId]
   );
 
   const sendTyping = useMemo(
     () => (userId: string, isTyping: boolean) => {
-      // TODO: Send typing event via Pusher
-      // Example:
-      // const channel = pusherRef.current;
-      // if (!channel || !userId) return;
-      // channel.trigger('client-typing', { userId, isTyping });
+      const channel = channelRef.current;
+      if (!channel || !userId) return;
       
-      console.log("⌨️ TODO: Send typing event via Pusher", { userId, isTyping });
+      try {
+        // Note: client events must be prefixed with 'client-' and channel must be private/presence
+        channel.trigger('client-typing', { userId, isTyping });
+      } catch (err) {
+        console.error("❌ Error sending typing event:", err);
+      }
     },
     []
   );

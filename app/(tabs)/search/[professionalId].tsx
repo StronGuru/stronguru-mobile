@@ -149,7 +149,22 @@ export default function ProfessionalDetails() {
       setChatLoading(true);
       const room = await getOrCreateRoom(professionalId as string, user._id as string);
       if (room && room.id) {
-        router.push(`/chat/${room.id}`);
+        // Prepara i dati del professionista per l'header della chat
+        const chatUserData = {
+          id: professionalId as string,
+          name: `${professional.firstName} ${professional.lastName}`,
+          avatar: professional.profileImg || undefined
+        };
+        
+        // Naviga alla chat sostituendo la schermata corrente
+        // In questo modo premendo "indietro" si torna alla lista chat
+        router.replace({
+          pathname: `/(tabs)/chat/[room]` as any,
+          params: { 
+            room: room.id.toString(),
+            chatUser: JSON.stringify(chatUserData)
+          }
+        });
       } else {
         Alert.alert("Errore", "Impossibile avviare la chat.");
       }
@@ -162,7 +177,7 @@ export default function ProfessionalDetails() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-background ">
+    <SafeAreaView className="flex-1 bg-background">
       <ScrollView className="flex-1" contentContainerStyle={{ padding: 16 }}>
         {/* Header verde con immagine e nome */}
         <View className="bg-primary shadow-sm rounded-2xl p-6 mb-6 items-center">

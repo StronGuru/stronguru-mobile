@@ -1,8 +1,6 @@
 import { RealtimeChatNative } from "@/components/chat/RealtimeChat.native";
 import { triggerUnreadMessagesUpdate } from "@/hooks/use-global-chat-realtime";
-// TODO: Remove supabase import when migrating to backend API
-// import { supabase } from "@/lib/supabase/client";
-import { markMessagesAsRead } from "@/src/services/chatService.native";
+import { invalidateUnreadCache, markMessagesAsRead } from "@/src/services/chatService.native";
 import { useUserDataStore } from "@/src/store/userDataStore";
 import { useFocusEffect } from "@react-navigation/native";
 import { useLocalSearchParams } from "expo-router";
@@ -84,16 +82,21 @@ export default function ChatRoomScreen() {
     React.useCallback(() => {
       async function loadAndMarkRead() {
         if (room && user?._id) {
-          // TODO: Replace with backend API call to fetch unread messages
-          // Example:
-          // const response = await apiClient.get(`/chat/rooms/${room}/unread-messages`);
-          // if (response.data) setInitialMessages(response.data);
+          console.log("🔄 Marking messages as read for room:", room);
           
-          console.log("📥 TODO: Load unread messages from backend API", { room, userId: user._id });
+          // Marca messaggi come letti
+          await markMessagesAsRead(room as string, String(user._id));
+          console.log("✅ Messages marked as read");
           
-          // Marca come letti e aggiorna badge
-          await markMessagesAsRead(Number(room), String(user._id));
+          // Invalida cache per forzare refetch al prossimo check
+          invalidateUnreadCache();
+          
+          // Piccolo delay per dare tempo al backend di processare
+          await new Promise(resolve => setTimeout(resolve, 300));
+          
+          // Triggerano aggiornamento badge
           triggerUnreadMessagesUpdate();
+          console.log("📢 Badge update triggered");
         }
       }
       loadAndMarkRead();
