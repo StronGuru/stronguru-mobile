@@ -8,7 +8,9 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "lint": "expo lint"
+    "lint": "expo lint",
+    "eas-build-pre-install": "echo '🔧 Clean Pods & DerivedData' && rm -rf ios/Pods ios/Podfile.lock ~/Library/Developer/Xcode/DerivedData || true",
+    "eas-build-post-install": "echo '📦 Pod install' && (cd ios && pod install) || true"
   },
   "dependencies": {
     "@expo-google-fonts/kanit": "^0.4.1",
@@ -65,6 +67,7 @@
     "@babel/core": "^7.25.2",
     "@types/react": "~19.0.10",
     "@types/react-native": "^0.72.8",
+    "eas-cli": "^16.24.1",
     "eslint": "^9.25.0",
     "eslint-config-expo": "~9.2.0",
     "typescript": "~5.8.3"

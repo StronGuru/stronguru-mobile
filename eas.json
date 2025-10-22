@@ -1,0 +1,27 @@
+{
+  "cli": {
+    "version": ">= 3.19.0"
+  },
+  "build": {
+    "production": {
+      "cache": { "disabled": true },
+      "ios": {
+        "resourceClass": "m1-medium"
+      }
+    },
+    "preview": {
+      "cache": { "disabled": true },
+      "ios": {
+        "resourceClass": "m1-medium"
+      }
+    },
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "cache": { "disabled": true },
+      "ios": {
+        "resourceClass": "m1-medium"
+      }
+    }
+  }
+}
