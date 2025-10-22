@@ -1,9 +1,10 @@
+import AppText from "@/components/ui/AppText";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "expo-router";
-import { CheckIcon, EyeIcon, EyeOffIcon } from "lucide-react-native";
+import { CheckIcon, ExternalLink, EyeIcon, EyeOffIcon } from "lucide-react-native";
 import React, { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
-import { ActivityIndicator, Image, KeyboardAvoidingView, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, Image, KeyboardAvoidingView, Linking, Platform, ScrollView, TextInput, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { RegistrationSchema, RegistrationType } from "../../lib/zod/authSchemas";
 import { useAuthStore } from "../../src/store/authStore";
@@ -24,6 +25,8 @@ export default function SignupScreen() {
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
   const { registerUser } = useAuthStore();
+  const PRIVACY_URL = process.env.EXPO_PUBLIC_PRIVACY_POLICY_URL as string;
+  const TERMS_URL = process.env.EXPO_PUBLIC_TERMS_OF_SERVICE_URL as string;
 
   const form = useForm<RegistrationType>({
     resolver: zodResolver(RegistrationSchema),
@@ -60,17 +63,17 @@ export default function SignupScreen() {
           {successState ? (
             // Success State
             <View className="items-center max-w-80 px-4">
-              <Text className="text-2xl font-medium text-foreground text-center mb-4">Registrazione effettuata</Text>
-              <Text className="text-md text-base text-foreground text-center my-6">
+              <AppText className="text-2xl  text-center mb-4">Registrazione effettuata</AppText>
+              <AppText className="text-md  text-center my-6">
                 Attiva l&#39;account attraverso la mail che ti abbiamo appena inviato. Se non la trovi, controlla nello spam oppure attendi qualche minuto.
-              </Text>
+              </AppText>
               <View className="mt-6 items-center text-md">
-                <Text className="text-foreground">
+                <AppText>
                   Account attivato?{" "}
-                  <Text className="text-primary font-bold underline" onPress={() => router.replace("/(auth)/login")}>
+                  <AppText w="semi" className="text-primary underline" onPress={() => router.replace("/(auth)/login")}>
                     Accedi
-                  </Text>
-                </Text>
+                  </AppText>
+                </AppText>
               </View>
             </View>
           ) : loading ? (
@@ -79,17 +82,19 @@ export default function SignupScreen() {
           ) : error ? (
             // Error State
             <View className="items-center max-w-80 px-4">
-              <Text className="text-xl font-medium text-foreground text-center mb-4">{error}</Text>
+              <AppText className="text-xl  text-center mb-4">{error}</AppText>
               <TouchableOpacity className="bg-primary rounded-lg p-3 items-center w-full" onPress={resetError}>
-                <Text className="color-white text-base font-semibold">Riprova</Text>
+                <AppText className="color-white">Riprova</AppText>
               </TouchableOpacity>
             </View>
           ) : (
             // Form State
             <>
-              <View className="items-center mb-12">
-                <Image source={require("../../assets/images/logo.png")} className="w-80 h-25" resizeMode="contain" />
-                <Text className="text-xl font-bold text-foreground ">Crea il tuo account</Text>
+              <View className="items-center mb-6 gap-4">
+                <Image source={require("../../assets/images/logo.png")} className="w-80 h-10" resizeMode="contain" />
+                <AppText w="semi" className="text-xl">
+                  Crea il tuo account
+                </AppText>
               </View>
 
               <View className="w-full max-w-80 px-4">
@@ -99,7 +104,9 @@ export default function SignupScreen() {
                   name="firstName"
                   render={({ field, fieldState }) => (
                     <View className="mb-4">
-                      <Text className="text-sm font-medium  text-foreground mb-2">Nome</Text>
+                      <AppText w="semi" className="text-md mb-2">
+                        Nome
+                      </AppText>
                       <TextInput
                         className={`bg-slate-100 rounded-lg p-3 textalign-center border ${fieldState.error ? "border-red-500" : "border-slate-200"}`}
                         placeholder="Inserisci il tuo nome"
@@ -107,8 +114,9 @@ export default function SignupScreen() {
                         onChangeText={field.onChange}
                         editable={!loading}
                         autoCapitalize="words"
+                        style={{ fontFamily: "Kanit_400Regular" }}
                       />
-                      {fieldState.error && <Text className="color-red-500 text-xs mt-1">{fieldState.error.message}</Text>}
+                      {fieldState.error && <AppText className="color-red-500 text-xs mt-1">{fieldState.error.message}</AppText>}
                     </View>
                   )}
                 />
@@ -119,7 +127,9 @@ export default function SignupScreen() {
                   name="lastName"
                   render={({ field, fieldState }) => (
                     <View className="mb-4">
-                      <Text className="text-sm font-medium  text-foreground mb-2">Cognome</Text>
+                      <AppText w="semi" className="text-md mb-2">
+                        Cognome
+                      </AppText>
                       <TextInput
                         className={`bg-slate-100 rounded-lg p-3 textalign-center border ${fieldState.error ? "border-red-500" : "border-slate-200"}`}
                         placeholder="Inserisci il tuo cognome"
@@ -127,8 +137,9 @@ export default function SignupScreen() {
                         onChangeText={field.onChange}
                         editable={!loading}
                         autoCapitalize="words"
+                        style={{ fontFamily: "Kanit_400Regular" }}
                       />
-                      {fieldState.error && <Text className="color-red-500 text-xs mt-1">{fieldState.error.message}</Text>}
+                      {fieldState.error && <AppText className="color-red-500 text-xs mt-1">{fieldState.error.message}</AppText>}
                     </View>
                   )}
                 />
@@ -139,7 +150,9 @@ export default function SignupScreen() {
                   name="email"
                   render={({ field, fieldState }) => (
                     <View className="mb-4">
-                      <Text className="text-sm font-medium  text-foreground mb-2">Email</Text>
+                      <AppText w="semi" className="text-md mb-2">
+                        Email
+                      </AppText>
                       <TextInput
                         className={`bg-slate-100 rounded-lg p-3 textalign-center border ${fieldState.error ? "border-red-500" : "border-slate-200"}`}
                         placeholder="Inserisci la tua email"
@@ -148,8 +161,9 @@ export default function SignupScreen() {
                         keyboardType="email-address"
                         autoCapitalize="none"
                         editable={!loading}
+                        style={{ fontFamily: "Kanit_400Regular" }}
                       />
-                      {fieldState.error && <Text className="color-red-500 text-xs mt-1">{fieldState.error.message}</Text>}
+                      {fieldState.error && <AppText className="color-red-500 text-xs mt-1">{fieldState.error.message}</AppText>}
                     </View>
                   )}
                 />
@@ -160,7 +174,9 @@ export default function SignupScreen() {
                   name="password"
                   render={({ field, fieldState }) => (
                     <View className="mb-4">
-                      <Text className="text-sm font-medium  text-foreground mb-2">Password</Text>
+                      <AppText w="semi" className="text-md mb-2">
+                        Password
+                      </AppText>
                       <View className="relative">
                         <TextInput
                           className={`bg-slate-100 rounded-lg p-3 pr-10 textalign-center border ${fieldState.error ? "border-red-500" : "border-slate-200"}`}
@@ -169,12 +185,13 @@ export default function SignupScreen() {
                           onChangeText={field.onChange}
                           secureTextEntry={!showPassword}
                           editable={!loading}
+                          style={{ fontFamily: "Kanit_400Regular" }}
                         />
                         <TouchableOpacity className="absolute right-3 top-3" onPress={() => setShowPassword(!showPassword)}>
                           {showPassword ? <EyeOffIcon size={20} color="#64748b" /> : <EyeIcon size={20} color="#64748b" />}
                         </TouchableOpacity>
                       </View>
-                      {fieldState.error && <Text className="color-red-500 text-xs mt-1">{fieldState.error.message}</Text>}
+                      {fieldState.error && <AppText className="color-red-500 text-xs mt-1">{fieldState.error.message}</AppText>}
                     </View>
                   )}
                 />
@@ -191,9 +208,15 @@ export default function SignupScreen() {
                         >
                           {field.value && <CheckIcon size={16} color="#fff" />}
                         </View>
-                        <Text className="text-sm  text-foreground">Accetto i termini e condizioni</Text>
+                        <AppText w="regular" className="text-md mr-1">
+                          Accetto i{" "}
+                          <AppText w="bold" className="text-primary underline" onPress={() => Linking.openURL(TERMS_URL)}>
+                            Termini e Condizioni
+                          </AppText>{" "}
+                        </AppText>
+                        <ExternalLink size={14} color="#64748b" />
                       </TouchableOpacity>
-                      {fieldState.error && <Text className="color-red-500 text-xs mt-1">{fieldState.error.message}</Text>}
+                      {fieldState.error && <AppText className="color-red-500 text-xs mt-1">{fieldState.error.message}</AppText>}
                     </View>
                   )}
                 />
@@ -210,26 +233,34 @@ export default function SignupScreen() {
                         >
                           {field.value && <CheckIcon size={17} color="white" />}
                         </View>
-                        <Text className="text-sm  text-foreground">Accetto la privacy policy</Text>
+                        <AppText w="regular" className="text-md mr-1">
+                          Accetto la{" "}
+                          <AppText w="bold" className="text-primary underline" onPress={() => Linking.openURL(PRIVACY_URL)}>
+                            Privacy Policy
+                          </AppText>{" "}
+                        </AppText>
+                        <ExternalLink size={14} color="#64748b" />
                       </TouchableOpacity>
-                      {fieldState.error && <Text className="color-red-500 text-xs mt-1">{fieldState.error.message}</Text>}
+                      {fieldState.error && <AppText className="color-red-500 text-xs mt-1">{fieldState.error.message}</AppText>}
                     </View>
                   )}
                 />
 
                 {/* Submit Button */}
                 <TouchableOpacity className="bg-primary rounded-lg p-3 items-center mt-4" onPress={form.handleSubmit(handleSubmit)} disabled={loading}>
-                  <Text className="color-white text-base font-semibold">Registrati</Text>
+                  <AppText w="bold" className="color-white text-lg ">
+                    Registrati
+                  </AppText>
                 </TouchableOpacity>
 
                 {/* Login Link */}
                 <View className="mt-8 items-center">
-                  <Text className=" text-foreground text-md">
+                  <AppText w="semi" className="text-md">
                     Hai già un account?{" "}
-                    <Text className="text-primary font-bold underline" onPress={() => router.replace("/(auth)/login")}>
+                    <AppText w="bold" className="text-primary  underline" onPress={() => router.replace("/(auth)/login")}>
                       Accedi
-                    </Text>
-                  </Text>
+                    </AppText>
+                  </AppText>
                 </View>
               </View>
             </>

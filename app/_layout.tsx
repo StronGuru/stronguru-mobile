@@ -7,6 +7,7 @@ import { useEffect } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { useAuthStore } from "../src/store/authStore";
 
+import { useHeroStore } from "@/src/store/heroStore";
 import "./globals.css";
 
 export default function RootLayout() {
@@ -14,6 +15,7 @@ export default function RootLayout() {
   useGlobalChatRealtime();
   const { isAuthenticated, isHydrated: authHydrated } = useAuthStore();
   const { hasCompletedOnboarding, isHydrated: onboardingHydrated } = useOnboardingStore();
+  const { isHydrated: heroHydrated, fetchHero } = useHeroStore();
 
   const [fontsLoaded, fontError] = useFonts({
     Kanit_200ExtraLight,
@@ -26,14 +28,24 @@ export default function RootLayout() {
     SplashScreen.preventAutoHideAsync().catch(() => {});
   }, []);
 
+  // Fetch Hero data al mount (solo se autenticato)
   useEffect(() => {
-    if (authHydrated && onboardingHydrated && (fontsLoaded || fontError)) {
+    if (authHydrated && isAuthenticated) {
+      fetchHero();
+    } else if (authHydrated && !isAuthenticated) {
+      // Se non autenticato, segna Hero come hydrated senza fetch
+      useHeroStore.setState({ isHydrated: true });
+    }
+  }, [authHydrated, isAuthenticated, fetchHero]);
+
+  useEffect(() => {
+    if (authHydrated && onboardingHydrated && heroHydrated && (fontsLoaded || fontError)) {
       SplashScreen.hideAsync().catch(() => {});
     }
-  }, [authHydrated, onboardingHydrated, fontsLoaded, fontError]);
+  }, [authHydrated, onboardingHydrated, heroHydrated, fontsLoaded, fontError]);
 
   // Non renderizzare nulla finché gli store e i font non sono pronti (la splash native rimane visibile)
-  if (!authHydrated || !onboardingHydrated || (!fontsLoaded && !fontError)) {
+  if (!authHydrated || !onboardingHydrated || !heroHydrated || (!fontsLoaded && !fontError)) {
     return null;
   }
 
