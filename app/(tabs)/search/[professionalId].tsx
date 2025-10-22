@@ -391,23 +391,13 @@ export default function ProfessionalDetails() {
           {/* Pulsante chiudi */}
           <TouchableOpacity
             onPress={() => setImageModalVisible(false)}
-            className="absolute top-12 right-4 w-10 h-10 bg-white/20 rounded-full items-center justify-center z-10"
+            className="absolute top-16 right-4 w-10 h-10 bg-white/20 rounded-full items-center justify-center z-10"
           >
             <X size={24} color="white" />
           </TouchableOpacity>
 
           {/* Immagine full-size */}
           {professional?.profileImg && <Image source={{ uri: professional.profileImg }} className="w-full h-full" resizeMode="contain" />}
-
-          {/* Info professionale sotto (opzionale) */}
-          <View className="absolute bottom-12 left-0 right-0 px-6">
-            <View className="bg-black/60 rounded-2xl p-4 backdrop-blur-sm">
-              <AppText w="bold" className="text-white text-2xl text-center">
-                {professional?.firstName} {professional?.lastName}
-              </AppText>
-              <AppText className="text-white/80 text-center mt-1">{professional?.specializations.map((s) => specializationLabels[s] || s).join(", ")}</AppText>
-            </View>
-          </View>
         </View>
       </Modal>
     </SafeAreaView>
