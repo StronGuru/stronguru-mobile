@@ -1,6 +1,5 @@
 import { useOnboardingStore } from "@/src/store/onboardingStore";
-import * as Location from "expo-location";
-import * as Notifications from "expo-notifications";
+import { usePermissionsStore } from "@/src/store/permissionsStore"; // ✅ Import store
 import { Bell, ChevronLeft, ChevronRight, MapPin } from "lucide-react-native";
 import React, { useState } from "react";
 import { Alert, Image, Text, TouchableOpacity, View } from "react-native";
@@ -46,8 +45,10 @@ const onboardingData: OnboardingSlide[] = [
 
 export default function OnboardingScreen() {
   const [currentSlide, setCurrentSlide] = useState(0);
-  const [permissionsGranted, setPermissionsGranted] = useState({ notifications: false, location: false });
   const { setHasCompletedOnboarding } = useOnboardingStore();
+
+  // ✅ Usa store invece di state locale
+  const { notificationsGranted, locationGranted, requestNotificationPermission, requestLocationPermission } = usePermissionsStore();
 
   const nextSlide = () => {
     if (currentSlide < onboardingData.length - 1) {
@@ -61,41 +62,37 @@ export default function OnboardingScreen() {
     }
   };
 
+  // ✅ Aggiornato per usare store actions
   const requestPermissions = async () => {
     try {
-      // Richiedi permessi notifiche
-      const notificationResult = await Notifications.requestPermissionsAsync();
-      const notificationsGranted = notificationResult.status === "granted";
+      console.log("🔄 Requesting permissions from onboarding...");
 
-      // Richiedi permessi posizione
-      const locationResult = await Location.requestForegroundPermissionsAsync();
-      const locationGranted = locationResult.status === "granted";
+      // Richiedi notifiche
+      const notifGranted = await requestNotificationPermission();
 
-      setPermissionsGranted({
-        notifications: notificationsGranted,
-        location: locationGranted
-      });
+      // Richiedi posizione
+      const locGranted = await requestLocationPermission();
 
-      if (notificationsGranted || locationGranted) {
-        Alert.alert("Perfetto!", "Hai attivato alcuni permessi. Potrai sempre modificarli dalle impostazioni.", [
-          { text: "Continua", onPress: completeOnboarding }
-        ]);
+      if (notifGranted || locGranted) {
+        Alert.alert("Perfetto!", "Hai attivato i permessi. Potrai sempre modificarli dalle impostazioni.", [{ text: "Continua", onPress: completeOnboarding }]);
       } else {
         Alert.alert("Nessun problema!", "Potrai attivare i permessi in qualsiasi momento dalle impostazioni dell'app.", [
           { text: "Continua", onPress: completeOnboarding }
         ]);
       }
     } catch (error) {
-      console.error("Errore richiesta permessi:", error);
+      console.error("❌ Error requesting permissions:", error);
       completeOnboarding(); // Continua comunque
     }
   };
 
   const completeOnboarding = () => {
+    console.log("✅ Onboarding completed");
     setHasCompletedOnboarding(true);
   };
 
   const skipOnboarding = () => {
+    console.log("⏭️ Onboarding skipped");
     setHasCompletedOnboarding(true);
   };
 
@@ -125,7 +122,7 @@ export default function OnboardingScreen() {
         {/* Content */}
         <View className="flex-1 justify-center items-center px-6">
           {/* Icon */}
-          <View className={`w-80 h-80 items-center justify-center mb-7 rounded-full bg-white overflow-hidden`}>{currentData.icon}</View>
+          <View className="w-80 h-80 items-center justify-center mb-7 rounded-full bg-white overflow-hidden">{currentData.icon}</View>
 
           {/* Title */}
           <Text className="text-3xl font-bold text-primary text-center mb-6">{currentData.title}</Text>
@@ -133,37 +130,32 @@ export default function OnboardingScreen() {
           {/* Description */}
           <Text className="text-lg text-foreground text-center leading-relaxed max-w-sm px-4">{currentData.description}</Text>
 
-          {/* Permissions Status (only on last slide) */}
+          {/* ✅ Permissions Status (usa store invece di state locale) */}
           {currentData.requiresPermissions && (
-            <View className=" flex-col mt-8 gap-3">
+            <View className="flex-col mt-8 gap-3">
               <View className="flex-row items-center justify-center">
-                <Bell size={20} color={permissionsGranted.notifications ? "#059669" : "#6b7280"} />
-                <Text className={`ml-2 ${permissionsGranted.notifications ? "text-primary" : "text-muted-foreground"}`}>
-                  Notifiche {permissionsGranted.notifications ? "attivate" : ""}
+                <Bell size={20} color={notificationsGranted ? "#059669" : "#6b7280"} />
+                <Text className={`ml-2 ${notificationsGranted ? "text-primary" : "text-muted-foreground"}`}>
+                  Notifiche {notificationsGranted ? "attivate" : ""}
                 </Text>
               </View>
               <View className="flex-row items-center justify-center">
-                <MapPin size={20} color={permissionsGranted.location ? "#059669" : "#6b7280"} />
-                <Text className={`ml-2 ${permissionsGranted.location ? "text-primary" : "text-muted-foreground"}`}>
-                  Posizione {permissionsGranted.location ? "attivata" : ""}
-                </Text>
+                <MapPin size={20} color={locationGranted ? "#059669" : "#6b7280"} />
+                <Text className={`ml-2 ${locationGranted ? "text-primary" : "text-muted-foreground"}`}>Posizione {locationGranted ? "attivata" : ""}</Text>
               </View>
             </View>
           )}
         </View>
 
-        {/* Bottom Section */}
+        {/* Bottom Section - invariato */}
         <View className="p-6">
-          {/* Dots Indicator */}
           <View className="flex-row justify-center items-center mb-8">
             {onboardingData.map((_, index) => (
               <View key={index} className={`w-3 h-3 rounded-full mx-1 ${index === currentSlide ? "bg-primary" : "bg-muted-foreground"}`} />
             ))}
           </View>
 
-          {/* Navigation Buttons */}
           <View className="flex-row justify-between items-center">
-            {/* Previous Button */}
             <TouchableOpacity
               onPress={prevSlide}
               disabled={currentSlide === 0}
@@ -173,9 +165,8 @@ export default function OnboardingScreen() {
               <Text className={`ml-2 font-medium ${currentSlide === 0 ? "text-muted-foreground" : "text-primary"}`}>Indietro</Text>
             </TouchableOpacity>
 
-            {/* Next/Finish Button */}
             <TouchableOpacity onPress={handleNext} className="flex-row items-center px-6 py-3 bg-primary rounded-xl shadow-sm">
-              <Text className="text-white  text-lg mr-1">{isLastSlide ? (currentData.requiresPermissions ? "Attiva permessi" : "Inizia") : "Avanti"}</Text>
+              <Text className="text-white text-lg mr-1">{isLastSlide ? (currentData.requiresPermissions ? "Attiva permessi" : "Inizia") : "Avanti"}</Text>
               <ChevronRight size={20} color="white" />
             </TouchableOpacity>
           </View>
