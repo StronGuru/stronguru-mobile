@@ -390,10 +390,10 @@ export const RealtimeChatNative = ({ roomName, roomId: roomIdProp, username, ini
           {/* Typing indicator */}
           <TypingIndicatorNative typingUsers={typingUsers} currentUserId={String(currentUserId ?? "")} />
 
-          <View className="flex-row items-center px-4 py-3 bg-primary">
+          <View className="flex-row items-center px-4 py-3 bg-background border-t border-border">
             <TextInput
               ref={inputRef}
-              className="flex-1 bg-white text-foreground rounded-lg px-3 py-3 mr-3"
+              className="flex-1 bg-muted text-foreground rounded-full px-4 py-3 mr-3"
               value={text}
               onChangeText={handleTextChange}
               placeholder="Scrivi un messaggio..."
@@ -408,10 +408,10 @@ export const RealtimeChatNative = ({ roomName, roomId: roomIdProp, username, ini
             <TouchableOpacity 
               onPress={handleSend} 
               disabled={!isConnected || !text.trim() || isSending} 
-              className="w-10 h-10 rounded-lg bg-white items-center justify-center"
-              style={{ opacity: isConnected && text.trim() && !isSending ? 1 : 0.6 }}
+              className="w-11 h-11 rounded-full bg-primary items-center justify-center"
+              style={{ opacity: isConnected && text.trim() && !isSending ? 1 : 0.5 }}
             >
-              <Send size={20} color={isConnected && text.trim() && !isSending ? "#10b981" : "#999"} />
+              <Send size={20} color="#fff" />
             </TouchableOpacity>
           </View>
         </KeyboardAvoidingView>
