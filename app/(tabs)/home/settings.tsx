@@ -6,6 +6,7 @@ import { useUserDataStore } from "@/src/store/userDataStore";
 import { Feather } from "@expo/vector-icons";
 import Constants from "expo-constants";
 import * as Linking from "expo-linking";
+import { FileText, Shield } from "lucide-react-native";
 import React from "react";
 import { Alert, ScrollView, TouchableOpacity, View, useColorScheme } from "react-native";
 
@@ -14,6 +15,8 @@ export default function Settings() {
   const { setHasCompletedOnboarding } = useOnboardingStore();
   const user = useUserDataStore((state) => state.user);
   const colorScheme = useColorScheme();
+  const PRIVACY_URL = process.env.EXPO_PUBLIC_PRIVACY_POLICY_URL as string;
+  const TERMS_URL = process.env.EXPO_PUBLIC_TERMS_OF_SERVICE_URL as string;
 
   const resetOnboarding = () => {
     setHasCompletedOnboarding(false);
@@ -54,6 +57,20 @@ export default function Settings() {
     } catch (error) {
       console.error("Errore nell'apertura del client email:", error);
       Alert.alert("Errore", "Impossibile aprire il client di posta.");
+    }
+  };
+
+  const openTermsLink = async (url: string, platform: string) => {
+    try {
+      const supported = await Linking.canOpenURL(url);
+      if (supported) {
+        await Linking.openURL(url);
+      } else {
+        Alert.alert("Errore", `Impossibile aprire ${platform}.`);
+      }
+    } catch (error) {
+      console.error(`Errore nell'apertura di ${platform}:`, error);
+      Alert.alert("Errore", `Impossibile aprire ${platform}.`);
     }
   };
 
@@ -138,6 +155,43 @@ export default function Settings() {
                 </View>
               </View>
               <Feather name="chevron-right" size={20} color={colorScheme === "dark" ? "white" : "var(--color-muted-foreground)"} />
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Term and Privacy Section */}
+        <View className="mb-8">
+          <AppText w="semi" className="text-xl  mb-4">
+            Termini e Privacy
+          </AppText>
+          <View className="bg-card rounded-xl p-4 border border-border">
+            <TouchableOpacity
+              className="flex-row items-center justify-between py-3 border-b border-border"
+              onPress={() => openTermsLink(TERMS_URL, "Termini e condizioni")}
+            >
+              <View className="flex-row items-center flex-1">
+                <View className="w-10 h-10 items-center justify-center mr-3">
+                  <FileText size={24} color={colorScheme === "dark" ? "white" : "black"} />
+                </View>
+                <View className="flex-1">
+                  <AppText className="text-lg">Termini e Condizioni</AppText>
+                  <AppText className="text-md text-muted-foreground">Visualizza i termini e condizioni</AppText>
+                </View>
+              </View>
+              <Feather name="external-link" size={20} color={colorScheme === "dark" ? "white" : "var(--color-muted-foreground)"} />
+            </TouchableOpacity>
+
+            <TouchableOpacity className="flex-row items-center justify-between py-3" onPress={() => openTermsLink(PRIVACY_URL, "Privacy Policy")}>
+              <View className="flex-row items-center flex-1">
+                <View className="w-10 h-10 items-center justify-center mr-3">
+                  <Shield size={24} color={colorScheme === "dark" ? "white" : "black"} />
+                </View>
+                <View className="flex-1">
+                  <AppText className="text-lg">Privacy Policy</AppText>
+                  <AppText className="text-md text-muted-foreground">Visualizza la nostra Privacy Policy</AppText>
+                </View>
+              </View>
+              <Feather name="external-link" size={20} color={colorScheme === "dark" ? "white" : "var(--color-muted-foreground)"} />
             </TouchableOpacity>
           </View>
         </View>
