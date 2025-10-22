@@ -7,5 +7,5 @@ interface CardProps {
 }
 
 export default function Card({ children, className = "" }: CardProps) {
-  return <View className={`bg-card shadow-sm p-4 rounded-lg border border-card dark:border-secondary ${className}`}>{children}</View>;
+  return <View className={`bg-card shadow-sm p-4 rounded-2xl border border-card dark:border-secondary ${className}`}>{children}</View>;
 }
