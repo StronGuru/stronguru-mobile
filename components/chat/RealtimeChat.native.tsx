@@ -3,15 +3,15 @@ import { router } from "expo-router";
 import { ArrowLeft, Send } from "lucide-react-native";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-    FlatList,
-    Image,
-    KeyboardAvoidingView,
-    Platform,
-    SafeAreaView,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View
+  FlatList,
+  Image,
+  KeyboardAvoidingView,
+  Platform,
+  SafeAreaView,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
 } from "react-native";
 import { TypingIndicatorNative } from "./TypingIndicator.native";
 
@@ -333,27 +333,15 @@ export const RealtimeChatNative = ({ roomName, roomId: roomIdProp, username, ini
   };
 
   return (
-    <View className="flex-1 bg-background">
-      <SafeAreaView className="flex-1 bg-background" style={{ paddingTop: Platform.OS === 'ios' ? 0 : 26 }}>
+    <View className="flex-1 bg-primary">
+      <SafeAreaView className="flex-1 bg-primary" style={{ paddingTop: Platform.OS === 'ios' ? 0 : 26 }}>
         {/* Header Chat */}
-        <View className="flex-row items-center px-4 py-4 bg-surface border-b border-border" style={{ paddingTop: Platform.OS === 'ios' ? 12 : 28 }}>
+        <View className="flex-row items-center px-4 py-4 bg-primary" style={{ paddingTop: Platform.OS === 'ios' ? 12 : 28 }}>
           <TouchableOpacity onPress={handleGoBack} className="mr-3">
-            <ArrowLeft size={24} color="currentColor" className="text-foreground" />
+            <ArrowLeft size={24} color="#fff" />
           </TouchableOpacity>
           
-          <TouchableOpacity 
-            className="flex-row items-center flex-1"
-            onPress={() => {
-              if (chatUser?.id) {
-                // Naviga alla pagina del professionista
-                router.push({
-                  pathname: `/(tabs)/search/[professionalId]` as any,
-                  params: { professionalId: chatUser.id }
-                });
-              }
-            }}
-            activeOpacity={0.7}
-          >
+          <View className="flex-row items-center flex-1">
             {chatUser?.avatar ? (
               <Image 
                 source={{ uri: chatUser.avatar }} 
@@ -369,14 +357,11 @@ export const RealtimeChatNative = ({ roomName, roomId: roomIdProp, username, ini
             )}
             
             <View className="flex-1">
-              <Text className="text-foreground font-semibold text-base">
+              <Text className="text-white font-semibold text-base">
                 {chatUser?.name || 'Utente'}
               </Text>
-              <Text className="text-xs text-muted-foreground">
-                Tocca per vedere il profilo
-              </Text>
             </View>
-          </TouchableOpacity>
+          </View>
         </View>
         
         <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} className="flex-1">
@@ -405,13 +390,14 @@ export const RealtimeChatNative = ({ roomName, roomId: roomIdProp, username, ini
           {/* Typing indicator */}
           <TypingIndicatorNative typingUsers={typingUsers} currentUserId={String(currentUserId ?? "")} />
 
-          <View className="flex-row items-center px-4 py-3 border-t border-border bg-background">
+          <View className="flex-row items-center px-4 py-3 bg-primary">
             <TextInput
               ref={inputRef}
-              className="flex-1 border border-accent text-foreground rounded-lg px-3 py-3 mr-3"
+              className="flex-1 bg-white text-foreground rounded-lg px-3 py-3 mr-3"
               value={text}
               onChangeText={handleTextChange}
               placeholder="Scrivi un messaggio..."
+              placeholderTextColor="#999"
               editable={isConnected}
               onSubmitEditing={handleSend}
               returnKeyType="send"
@@ -422,10 +408,10 @@ export const RealtimeChatNative = ({ roomName, roomId: roomIdProp, username, ini
             <TouchableOpacity 
               onPress={handleSend} 
               disabled={!isConnected || !text.trim() || isSending} 
-              className="w-10 h-10 rounded-lg bg-primary items-center justify-center"
+              className="w-10 h-10 rounded-lg bg-white items-center justify-center"
               style={{ opacity: isConnected && text.trim() && !isSending ? 1 : 0.6 }}
             >
-              <Send size={20} color={isConnected && text.trim() && !isSending ? "#fff" : "#999"} />
+              <Send size={20} color={isConnected && text.trim() && !isSending ? "#10b981" : "#999"} />
             </TouchableOpacity>
           </View>
         </KeyboardAvoidingView>

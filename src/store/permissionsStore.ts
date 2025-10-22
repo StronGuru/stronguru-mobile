@@ -1,6 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Location from "expo-location";
-import * as Notifications from "expo-notifications";
+// TODO: Riattivare quando si testa su dispositivo reale
+// import * as Notifications from "expo-notifications";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 
@@ -25,8 +26,10 @@ export const usePermissionsStore = create<PermissionsState>()(
         try {
           console.log("🔄 Checking permissions status...");
 
-          const notifStatus = await Notifications.getPermissionsAsync();
-          const notifGranted = notifStatus.status === "granted";
+          // TODO: Riattivare quando si testa su dispositivo reale
+          // const notifStatus = await Notifications.getPermissionsAsync();
+          // const notifGranted = notifStatus.status === "granted";
+          const notifGranted = false; // Temporaneamente disabilitato per emulatore
 
           const locationStatus = await Location.getForegroundPermissionsAsync();
           const locGranted = locationStatus.status === "granted";
@@ -45,8 +48,10 @@ export const usePermissionsStore = create<PermissionsState>()(
       // ✅ FIX: Richiedi SEMPRE se non granted (mostra dialog nativo anche se denied prima)
       requestNotificationPermission: async () => {
         try {
-          console.log("🔄 Requesting notification permission...");
+          console.log("🔄 Requesting notification permission... (DISABLED FOR EMULATOR)");
 
+          // TODO: Riattivare quando si testa su dispositivo reale
+          /*
           const { status: existingStatus } = await Notifications.getPermissionsAsync();
 
           if (existingStatus === "granted") {
@@ -68,6 +73,12 @@ export const usePermissionsStore = create<PermissionsState>()(
           }
 
           return granted;
+          */
+
+          // Temporaneamente disabilitato per emulatore
+          set({ notificationsGranted: false });
+          console.log("⚠️ Notifications disabled for emulator");
+          return false;
         } catch (error) {
           console.error("❌ Error requesting notification permission:", error);
           return false;
