@@ -1,4 +1,3 @@
-// app/ProfessionalDetails.tsx
 import apiClient from "@/api/apiClient";
 import AppText from "@/components/ui/AppText";
 import Card from "@/components/ui/Card";
