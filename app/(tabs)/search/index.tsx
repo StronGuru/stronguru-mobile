@@ -1,10 +1,21 @@
 import apiClient from "@/api/apiClient";
-import { Brain, Dumbbell, Filter, MapPin, Rocket, Salad, Search, X } from "lucide-react-native";
-import React, { useEffect, useState } from "react";
-import { ActivityIndicator, Image, Modal, RefreshControl, SafeAreaView, ScrollView, Text, TextInput, TouchableOpacity, View } from "react-native";
-
 import AppText from "@/components/ui/AppText";
 import { useRouter } from "expo-router";
+import { Filter, MapPin, Rocket, Search, X } from "lucide-react-native";
+import React, { useEffect, useState } from "react";
+import {
+  ActivityIndicator,
+  Image,
+  ImageBackground,
+  Modal,
+  RefreshControl,
+  SafeAreaView,
+  ScrollView,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
+} from "react-native";
 
 interface Address {
   street: string;
@@ -13,8 +24,6 @@ interface Address {
   province: string;
   country: string;
 }
-
-type BadgeType = "salad" | "dumbbell" | "brain";
 
 type Professional = {
   _id: string;
@@ -25,6 +34,7 @@ type Professional = {
   ambassador: boolean;
   specializations: string[];
 };
+
 interface FilterOption {
   label: string;
   value: string;
@@ -83,35 +93,6 @@ export default function SearchScreen() {
     }
   };
 
-  const getBadgesFromSpecializations = (specializations: string[]): BadgeType[] => {
-    const badges: BadgeType[] = [];
-
-    if (specializations.includes("trainer")) {
-      badges.push("dumbbell");
-    }
-    if (specializations.includes("psychologist")) {
-      badges.push("brain");
-    }
-    if (specializations.includes("nutritionist")) {
-      badges.push("salad");
-    }
-
-    return badges;
-  };
-
-  const renderBadgeIcon = (badge: BadgeType) => {
-    switch (badge) {
-      case "dumbbell":
-        return <Dumbbell size={16} color="white" />;
-      case "brain":
-        return <Brain size={16} color="white" />;
-      case "salad":
-        return <Salad size={16} color="white" />;
-      default:
-        return null;
-    }
-  };
-
   const getInitials = (firstName: string, lastName: string): string => {
     return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
   };
@@ -120,13 +101,25 @@ export default function SearchScreen() {
     return professional.ambassador ? "#8b5cf6" : "#64748b";
   };
 
+  // ✅ Helper per ottenere immagine background in base alla specializzazione
+  const getBackgroundImage = (specializations: string[]) => {
+    // Priorità: nutritionist > trainer > psychologist
+    if (specializations.includes("nutritionist")) {
+      return require("@/assets/images/bg-nutrition.png");
+    } else if (specializations.includes("trainer")) {
+      return require("@/assets/images/bg-training.png");
+    } else if (specializations.includes("psychologist")) {
+      return require("@/assets/images/bg-psychology.png");
+    }
+    return null; // Fallback a colore solido
+  };
+
   const handleFilterSelect = (option: FilterOption) => {
     setSelectedFilters((prev) => {
       if (prev.includes(option.value)) {
         //se gia presente rimuove
         return prev.filter((filter) => filter !== option.value);
       } else {
-        //se non presente aggiunge
         return [...prev, option.value];
       }
     });
@@ -150,48 +143,67 @@ export default function SearchScreen() {
     if (!professional || !professional.specializations) {
       return null;
     }
-    const badges = getBadgesFromSpecializations(professional.specializations);
+    const backgroundImage = getBackgroundImage(professional.specializations);
 
     return (
       <TouchableOpacity
         onPress={() => {
           router.push(`/search/${professional._id}` as any);
         }}
+        className="shadow-sm"
       >
-        <View className="bg-card rounded-xl  mb-4 shadow-sm  relative">
-          <View className="bg-secondary p-4 items-center rounded-t-xl">
+        <View className="bg-card border border-gray-200 dark:border-secondary rounded-xl mb-4 overflow-hidden">
+          {/* ✅ Top section con background image */}
+          <ImageBackground
+            source={backgroundImage}
+            resizeMode="cover"
+            className="p-4 items-center min-h-[140px]"
+            imageStyle={{ borderTopLeftRadius: 12, borderTopRightRadius: 12, opacity: 0.4 }}
+          >
+            {/* Fallback color layer se no immagine */}
+            {!backgroundImage && <View className="absolute inset-0 rounded-t-xl" style={{ backgroundColor: getBackgroundColor(professional) }} />}
+
+            {/* Ambassador Badge */}
             {professional.ambassador === true && (
-              <TouchableOpacity className="absolute top-4 left-4 w-8 h-8 rounded-full items-center justify-center bg-orange-400">
+              <View className="absolute top-4 left-4 w-8 h-8 rounded-full items-center justify-center bg-orange-400 shadow-md">
                 <Rocket size={16} color="white" />
-              </TouchableOpacity>
+              </View>
             )}
 
             {/* Avatar */}
             <View
-              className="w-[100px] h-[100px] rounded-full items-center justify-center mb-1 mt-2 bg-green-200"
+              className={`w-[100px] h-[100px] rounded-full items-center justify-center mb-1 mt-2 border-2 ${
+                professional.specializations.includes("nutritionist")
+                  ? "border-primary"
+                  : professional.specializations.includes("psychologist")
+                    ? "border-blue-500"
+                    : "border-red-500"
+              } shadow-md`}
               style={{ backgroundColor: getBackgroundColor(professional) }}
             >
               {professional.profileImg ? (
-                <Image source={{ uri: professional.profileImg }} className="w-[100px] h-[100px] rounded-full" resizeMode="cover" />
+                <Image
+                  source={{ uri: professional.profileImg }}
+                  className={`w-[100px] h-[100px] rounded-full border-2 ${
+                    professional.specializations.includes("nutritionist")
+                      ? "border-primary"
+                      : professional.specializations.includes("psychologist")
+                        ? "border-blue-500"
+                        : "border-red-500"
+                  }`}
+                  resizeMode="cover"
+                />
               ) : (
                 <Text className="text-2xl font-bold text-white">{getInitials(professional.firstName, professional.lastName)}</Text>
               )}
             </View>
-          </View>
-          <View className="items-center mt-4 ">
-            {/* Name */}
-            <AppText w="semi" className="text-lg  mb-2 text-center">
+          </ImageBackground>
+
+          {/* ✅ Bottom section - NO background image */}
+          <View className="items-center mt-4">
+            <AppText w="semi" className="text-lg mb-2 text-center">
               {professional.firstName} {professional.lastName}
             </AppText>
-
-            {/* Badges */}
-            <View className="flex-row gap-2 mb-3">
-              {badges.map((badge: BadgeType, index: number) => (
-                <View key={`${professional._id}-${badge}-${index}`} className="w-8 h-8 bg-green-500 rounded-full items-center justify-center">
-                  {renderBadgeIcon(badge)}
-                </View>
-              ))}
-            </View>
 
             {/* Location */}
             {professional.address?.city && (
@@ -209,11 +221,11 @@ export default function SearchScreen() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-background ">
+    <SafeAreaView className="flex-1 bg-background">
       {/* Search Bar */}
       <View className="bg-background px-4 py-3 border-b border-border">
         <View className="flex-row items-center">
-          <View className="flex-1 flex-row items-center bg-input rounded-lg px-3  mr-3">
+          <View className="flex-1 flex-row items-center bg-input rounded-lg px-3 mr-3">
             <Search size={20} color="#64748b" />
             <TextInput
               className="flex-1 ml-2 text-card-foreground"
@@ -223,20 +235,17 @@ export default function SearchScreen() {
                 fontFamily: "Kanit_400Regular"
               }}
               placeholder="Cerca professionisti..."
+              placeholderTextColor="#9ca3af"
               value={searchQuery}
               onChangeText={setSearchQuery}
             />
           </View>
-          <TouchableOpacity
-            className="p-2 "
-            onPress={() => {
-              setOpenFilter(true);
-            }}
-          >
+          <TouchableOpacity className="p-2" onPress={() => setOpenFilter(true)}>
             <Filter size={24} color="#64748b" />
           </TouchableOpacity>
         </View>
       </View>
+
       {/* Active Filters */}
       {selectedFilters.length > 0 && (
         <View className="px-4 py-2 bg-background">
@@ -264,7 +273,7 @@ export default function SearchScreen() {
       {loading ? (
         <View className="flex-1 justify-center items-center">
           <ActivityIndicator size="large" color="#10b981" />
-          <AppText className=" mt-2">Caricamento professionisti...</AppText>
+          <AppText className="mt-2">Caricamento professionisti...</AppText>
         </View>
       ) : (
         <ScrollView
@@ -282,12 +291,20 @@ export default function SearchScreen() {
           }
         >
           <View className="flex-row flex-wrap justify-between">
-            {filteredProfessionals.map((professional: Professional) => (
-              <View key={professional._id} className="w-[48%]">
-                <ProfessionalCard professional={professional} />
+            {filteredProfessionals.length > 0 ? (
+              filteredProfessionals.map((professional: Professional) => (
+                <View key={professional._id} className="w-[48%]">
+                  <ProfessionalCard professional={professional} />
+                </View>
+              ))
+            ) : (
+              <View className="w-full items-center justify-center py-12">
+                <AppText className="text-muted-foreground text-lg">Nessun professionista trovato</AppText>
+                {searchQuery && <AppText className="text-muted-foreground text-sm mt-2">Prova con un&apos;altra ricerca</AppText>}
               </View>
-            ))}
+            )}
           </View>
+
           {/* Filter Modal */}
           <Modal visible={openFilter} transparent={true} animationType="fade" onRequestClose={() => setOpenFilter(false)}>
             <TouchableOpacity
@@ -298,7 +315,7 @@ export default function SearchScreen() {
               <TouchableOpacity className="bg-popover rounded-xl p-4 shadow-sm mx-8 w-[85vw]" activeOpacity={1}>
                 <View className="flex-row justify-between items-center mb-4">
                   <AppText w="semi" className="text-lg">
-                    Filtra Eventi
+                    Filtra Professionisti
                   </AppText>
                   <TouchableOpacity onPress={() => setOpenFilter(false)}>
                     <X size={24} color="#64748b" />

@@ -82,8 +82,16 @@ const MeasurementEntrySchema = z.object({
   _id: z.string().optional()
 });
 
-const FoodItemSchema = z.object({
+const FoodNutrientSchema = z.object({
   name: z.string(),
+  unitName: z.string(),
+  amount: z.number()
+});
+
+const FoodItemSchema = z.object({
+  description: z.string(),
+  fdcId: z.number(),
+  foodNutrients: z.array(FoodNutrientSchema),
   quantity: z.number(), // Nei tuoi dati è sempre number, non union
   unit: z.string(),
   _id: z.string()
@@ -91,8 +99,10 @@ const FoodItemSchema = z.object({
 
 // supplement item (stesso del food)
 const SupplementItemSchema = z.object({
-  name: z.string(),
-  quantity: z.number(), // Nei tuoi dati è sempre number
+  description: z.string(),
+  fdcId: z.number(),
+  foodNutrients: z.array(FoodNutrientSchema),
+  quantity: z.number(), // Nei tuoi dati è sempre number, non union
   unit: z.string(),
   _id: z.string()
 });
