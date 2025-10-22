@@ -16,13 +16,15 @@ import {
 import { TypingIndicatorNative } from "./TypingIndicator.native";
 
 import ChatMessageItemNative from "@/components/chat/ChatMessageItem.native";
+import DateSeparator from "@/components/chat/DateSeparator.native";
 import { useChatScrollNative } from "@/hooks/use-chat-scroll.native";
 import useRealtimeChatNative from "@/hooks/use-realtime-chat.native";
 import { useAuthStore } from "@/src/store/authStore";
 import type { ChatMessage, MessageRow } from "@/src/types/chatTypes";
 import { mapMessageRowToChatMessage } from "@/src/types/chatTypes";
 
-
+type DateSeparatorType = { type: 'date-separator'; date: string; id: string };
+type MessageOrSeparator = ChatMessage | DateSeparatorType;
 
 interface Props {
   roomName?: string; // legacy
@@ -41,14 +43,22 @@ interface Props {
 export const RealtimeChatNative = ({ roomName, roomId: roomIdProp, username, initialMessages = [], onMessage, chatUser }: Props) => {
     // const inputRef = useRef<TextInput>(null); // Removed duplicate declaration
 
-  const { listRef, scrollToBottom } = useChatScrollNative<ChatMessage>();
-  // prefer explicit roomId, else try to parse roomName
-  const roomId = roomIdProp ? Number(roomIdProp) : roomName ? Number(roomName) : null;
+  const { listRef, scrollToBottom } = useChatScrollNative<MessageOrSeparator>();
+  // prefer explicit roomId, else use roomName (now supports string IDs from MongoDB)
+  const roomId = (roomIdProp || roomName || null) as string | number | null;
 
   const currentUserId = useAuthStore((s: any) => s.userId ?? s.user?._id ?? s.user?.id ?? s.authData?.user?.id ?? null);
+  
+  // Track se la schermata è in focus per marcare automaticamente i messaggi come letti
+  const [isScreenFocused, setIsScreenFocused] = React.useState(true);
 
-  const { messages: realtimeMessages, sendMessage, loading, typingUsers, sendTyping } = useRealtimeChatNative(roomId);
+  const { messages: realtimeMessages, sendMessage, loading, typingUsers, sendTyping } = useRealtimeChatNative(
+    roomId,
+    currentUserId,
+    isScreenFocused
+  );
   const [text, setText] = useState("");
+  const [isSending, setIsSending] = useState(false);
   const typingTimeoutRef = useRef<number | null>(null);
   const isTypingRef = useRef<boolean>(false);
   const keepAliveIntervalRef = useRef<number | null>(null);
@@ -91,8 +101,42 @@ export const RealtimeChatNative = ({ roomName, roomId: roomIdProp, username, ini
     const normRealtime = (realtimeMessages || []).map(normalize);
     const merged = [...normInitial, ...normRealtime];
     const unique = merged.filter((m, i, arr) => i === arr.findIndex((x) => x.id === m.id));
-    return unique.sort((a, b) => new Date(a.createdAt ?? "").getTime() - new Date(b.createdAt ?? "").getTime());
+    const sorted = unique.sort((a, b) => new Date(a.createdAt ?? "").getTime() - new Date(b.createdAt ?? "").getTime());
+    
+    console.log("💬 [RealtimeChat] Total messages:", sorted.length, {
+      initial: normInitial.length,
+      realtime: normRealtime.length,
+      merged: merged.length,
+      unique: unique.length
+    });
+    
+    return sorted;
   }, [initialMessages, realtimeMessages, normalize]);
+
+  // Crea array di messaggi con separatori di data
+  const messagesWithSeparators = useMemo(() => {
+    const items: MessageOrSeparator[] = [];
+    let lastDate: string | null = null;
+
+    allMessages.forEach((message) => {
+      const messageDate = new Date(message.createdAt ?? "");
+      const dateKey = messageDate.toISOString().split('T')[0]; // YYYY-MM-DD
+
+      // Se è un nuovo giorno, inserisci il separatore
+      if (dateKey !== lastDate) {
+        items.push({
+          type: 'date-separator',
+          date: message.createdAt ?? new Date().toISOString(),
+          id: `separator-${dateKey}`
+        });
+        lastDate = dateKey;
+      }
+
+      items.push(message);
+    });
+
+    return items;
+  }, [allMessages]);
 
   useEffect(() => {
     onMessage?.(allMessages);
@@ -120,6 +164,9 @@ export const RealtimeChatNative = ({ roomName, roomId: roomIdProp, username, ini
   // Scroll automatico quando si entra nella chat
   useFocusEffect(
     React.useCallback(() => {
+      // Segna la schermata come in focus
+      setIsScreenFocused(true);
+      
       // Scroll immediato
       scrollToBottom();
       
@@ -131,6 +178,8 @@ export const RealtimeChatNative = ({ roomName, roomId: roomIdProp, username, ini
       ];
       
       return () => {
+        // Segna la schermata come non più in focus
+        setIsScreenFocused(false);
         timeouts.forEach(clearTimeout);
       };
     }, [scrollToBottom])
@@ -227,11 +276,21 @@ export const RealtimeChatNative = ({ roomName, roomId: roomIdProp, username, ini
 
   const handleSend = useCallback(
     async () => {
-      if (!text.trim() || !isConnected) return;
+      if (!text.trim() || !isConnected || isSending) return;
       if (!currentUserId) {
         console.error("Missing currentUserId");
         return;
       }
+
+      // Salva il testo da inviare
+      const messageToSend = text.trim();
+      
+      // PULISCI IMMEDIATAMENTE il campo input (prima dell'await)
+      setText("");
+      inputRef.current?.clear();
+      
+      // Blocca ulteriori invii
+      setIsSending(true);
 
       // Stop typing indicator before sending
       isTypingRef.current = false;
@@ -247,19 +306,21 @@ export const RealtimeChatNative = ({ roomName, roomId: roomIdProp, username, ini
 
       try {
         if (typeof sendMessage === "function") {
-          await sendMessage(text.trim(), String(currentUserId));
+          // Passa il recipientUserId se disponibile (l'altro utente nella chat)
+          await sendMessage(messageToSend, String(currentUserId), chatUser?.id);
         } else {
           console.error("sendMessage not available from realtime hook");
         }
       } catch (err) {
         console.error("Error sending message", err);
+      } finally {
+        // Sblocca invii
+        setIsSending(false);
+        inputRef.current?.focus();
       }
-      setText("");
-      inputRef.current?.clear();
-      inputRef.current?.focus();
       setTimeout(() => scrollToBottom(), 50);
     },
-    [text, isConnected, currentUserId, sendMessage, sendTyping, scrollToBottom]
+    [text, isConnected, isSending, currentUserId, sendMessage, sendTyping, scrollToBottom, chatUser?.id]
   );
 
   const handleGoBack = () => {
@@ -272,12 +333,12 @@ export const RealtimeChatNative = ({ roomName, roomId: roomIdProp, username, ini
   };
 
   return (
-    <View className="flex-1 bg-background">
-      <SafeAreaView className="flex-1 bg-background" style={{ paddingTop: Platform.OS === 'ios' ? 0 : 26 }}>
+    <View className="flex-1 bg-primary">
+      <SafeAreaView className="flex-1 bg-primary" style={{ paddingTop: Platform.OS === 'ios' ? 0 : 26 }}>
         {/* Header Chat */}
-        <View className="flex-row items-center px-4 py-4 bg-surface border-b border-border" style={{ paddingTop: Platform.OS === 'ios' ? 12 : 28 }}>
+        <View className="flex-row items-center px-4 py-4 bg-primary" style={{ paddingTop: Platform.OS === 'ios' ? 12 : 28 }}>
           <TouchableOpacity onPress={handleGoBack} className="mr-3">
-            <ArrowLeft size={24} color="currentColor" className="text-foreground" />
+            <ArrowLeft size={24} color="#fff" />
           </TouchableOpacity>
           
           <View className="flex-row items-center flex-1">
@@ -296,7 +357,7 @@ export const RealtimeChatNative = ({ roomName, roomId: roomIdProp, username, ini
             )}
             
             <View className="flex-1">
-              <Text className="text-foreground font-semibold text-base">
+              <Text className="text-white font-semibold text-base">
                 {chatUser?.name || 'Utente'}
               </Text>
             </View>
@@ -306,9 +367,21 @@ export const RealtimeChatNative = ({ roomName, roomId: roomIdProp, username, ini
         <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} className="flex-1">
           <FlatList
             ref={listRef}
-            data={allMessages}
-            keyExtractor={(i) => String(i.id)}
-            renderItem={({ item }) => <ChatMessageItemNative message={item} currentUserId={String(currentUserId ?? "")} />}
+            data={messagesWithSeparators}
+            keyExtractor={(item) => {
+              if ('type' in item && item.type === 'date-separator') {
+                return item.id;
+              }
+              return String(item.id);
+            }}
+            renderItem={({ item }) => {
+              // Se è un separatore di data
+              if ('type' in item && item.type === 'date-separator') {
+                return <DateSeparator date={item.date} />;
+              }
+              // Altrimenti è un messaggio normale (safe cast dopo il check sopra)
+              return <ChatMessageItemNative message={item as ChatMessage} currentUserId={String(currentUserId ?? "")} />;
+            }}
             className="flex-1 p-3 bg-background"
             showsVerticalScrollIndicator={false}
             onLayout={() => scrollToBottom()}
@@ -317,13 +390,14 @@ export const RealtimeChatNative = ({ roomName, roomId: roomIdProp, username, ini
           {/* Typing indicator */}
           <TypingIndicatorNative typingUsers={typingUsers} currentUserId={String(currentUserId ?? "")} />
 
-          <View className="flex-row items-center px-4 py-3 border-t border-border bg-background">
+          <View className="flex-row items-center px-4 py-3 bg-background border-t border-border">
             <TextInput
               ref={inputRef}
-              className="flex-1 border border-accent text-foreground rounded-lg px-3 py-3 mr-3"
+              className="flex-1 bg-muted text-foreground rounded-full px-4 py-3 mr-3"
               value={text}
               onChangeText={handleTextChange}
               placeholder="Scrivi un messaggio..."
+              placeholderTextColor="#999"
               editable={isConnected}
               onSubmitEditing={handleSend}
               returnKeyType="send"
@@ -333,11 +407,11 @@ export const RealtimeChatNative = ({ roomName, roomId: roomIdProp, username, ini
             
             <TouchableOpacity 
               onPress={handleSend} 
-              disabled={!isConnected || !text.trim()} 
-              className="w-10 h-10 rounded-lg bg-primary items-center justify-center"
-              style={{ opacity: isConnected && text.trim() ? 1 : 0.6 }}
+              disabled={!isConnected || !text.trim() || isSending} 
+              className="w-11 h-11 rounded-full bg-primary items-center justify-center"
+              style={{ opacity: isConnected && text.trim() && !isSending ? 1 : 0.5 }}
             >
-              <Send size={20} color={isConnected && text.trim() ? "#fff" : "#999"} />
+              <Send size={20} color="#fff" />
             </TouchableOpacity>
           </View>
         </KeyboardAvoidingView>

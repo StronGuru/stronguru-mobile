@@ -1,15 +1,14 @@
-import { supabase } from "@/lib/supabase/client";
 import { useAuthStore } from "@/src/store/authStore";
 import { useChatBadgeStore } from "@/src/store/chatBadgeStore";
 import { useChatRoomsRefreshStore } from "@/src/store/chatRoomsRefreshStore";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { DeviceEventEmitter } from "react-native";
 
 /**
  * Hook globale per il conteggio dei messaggi ricevuti non letti.
  * 
  * - Va usato in un componente sempre montato (es: layout principale o provider globale).
- * - Resta in ascolto in tempo reale tramite Supabase, anche se l'utente è su altre pagine.
+ * - Resta in ascolto in tempo reale tramite Pusher, anche se l'utente è su altre pagine.
  * - Aggiorna il conteggio sia quando arrivano nuovi messaggi sia quando vengono letti (apertura chat).
  * - Non dipende dal montaggio della pagina chat: il badge è sempre aggiornato ovunque nell'app.
  *
@@ -20,15 +19,11 @@ export function useGlobalChatRealtime() {
   const setMaxUnread = useChatBadgeStore((s) => s.setMaxUnread);
   const triggerRefresh = useChatRoomsRefreshStore((s) => s.triggerRefresh);
   const [unreadCount, setUnreadCount] = useState(0);
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isLoadingRef = useRef(false);
 
   useEffect(() => {
     let isMounted = true;
-    let channel: ReturnType<typeof supabase.channel> | null = null;
-    let pollingInterval: ReturnType<typeof setInterval> | null = null;
-    let reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
-    let healthCheckInterval: ReturnType<typeof setInterval> | null = null;
-    let isConnected = false;
-    let lastFetchTime = 0;
 
     // Solo se abbiamo un userId
     if (!userId) {
@@ -36,153 +31,176 @@ export function useGlobalChatRealtime() {
       setMaxUnread(0);
       return () => {
         isMounted = false;
-        if (channel) supabase.removeChannel(channel);
-        if (pollingInterval) clearInterval(pollingInterval);
-        if (reconnectTimeout) clearTimeout(reconnectTimeout);
-        if (healthCheckInterval) clearInterval(healthCheckInterval);
+        if (debounceTimerRef.current) {
+          clearTimeout(debounceTimerRef.current);
+        }
         DeviceEventEmitter.removeAllListeners("unread-messages-updated");
       };
     }
 
     const fetchUnread = async () => {
+      // Evita fetch multipli simultanei
+      if (isLoadingRef.current) {
+        return;
+      }
+
       try {
-        lastFetchTime = Date.now();
+        isLoadingRef.current = true;
         
-        // Recupera tutte le room in cui l'utente è partecipante
-        const { data: partecipations, error: partecipationsError } = await supabase
-          .from("room_partecipants")
-          .select("room_id")
-          .eq("user_id", userId);
-
-        if (partecipationsError) {
-          setUnreadCount(0);
-          setMaxUnread(0);
-          return;
-        }
-
-        if (!partecipations || partecipations.length === 0) {
-          setUnreadCount(0);
-          setMaxUnread(0);
-          return;
-        }
-
-        const roomIds = partecipations.map((r) => Number(r.room_id)).filter((id) => !isNaN(id));
+        // Usa il nuovo endpoint ottimizzato
+        const { fetchUnreadCount } = await import("@/src/services/chatService.native");
+        const { total } = await fetchUnreadCount();
         
-        if (roomIds.length === 0) {
-          setUnreadCount(0);
-          setMaxUnread(0);
-          return;
-        }
-
-        // Conta tutti i messaggi non letti (chat normali + richieste)
-        const { data, error } = await supabase
-          .from("messages")
-          .select("id, sender_id, read, room_id")
-          .in("room_id", roomIds)
-          .neq("sender_id", userId)
-          .or("read.is.null,read.eq.false");
-
-        if (!error && isMounted && data) {
-          // Somma di tutti i messaggi non letti in tutte le room
-          const count = data.length;
-          setUnreadCount(count);
-          setMaxUnread(count);
+        if (isMounted) {
+          setUnreadCount(total);
+          setMaxUnread(total);
           triggerRefresh();
-        } else if (error) {
+        }
+      } catch (err) {
+        console.error("❌ Error fetching unread count", err);
+        if (isMounted) {
           setUnreadCount(0);
           setMaxUnread(0);
         }
-      } catch {
-        setUnreadCount(0);
-        setMaxUnread(0);
+      } finally {
+        isLoadingRef.current = false;
       }
     };
 
-    const setupRealtimeConnection = () => {
-      if (channel) {
-        supabase.removeChannel(channel);
+    // Versione con debouncing per evitare troppe chiamate ravvicinate
+    const debouncedFetchUnread = () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+      debounceTimerRef.current = setTimeout(() => {
+        fetchUnread();
+      }, 300); // 300ms di debounce
+    };
+    
+    // Listener per aggiornamenti manuali (quando si marca come letto)
+    const unreadListener = DeviceEventEmitter.addListener("unread-messages-updated", () => {
+      debouncedFetchUnread();
+    });
+    
+    // Setup Pusher subscription per ascoltare nuovi messaggi in tempo reale
+    let userChannel: any = null;
+    let pusherClient: any = null;
+    let isSubscribing = false;
+    
+    const setupPusherSubscription = async () => {
+      if (isSubscribing) {
+        return;
       }
 
-      channel = supabase
-        .channel(`global-unread-messages-${userId}`)
-        .on(
-          "postgres_changes",
-          { event: "*", schema: "public", table: "messages" },
-          () => {
-            if (isMounted) {
-              fetchUnread();
-            }
-          }
-        )
-        .subscribe((status) => {
-          if (!isMounted) return;
-          
-          if (status === 'SUBSCRIBED') {
-            isConnected = true;
-            // Stop polling se la connessione realtime funziona
-            if (pollingInterval) {
-              clearInterval(pollingInterval);
-              pollingInterval = null;
-            }
-          } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-            isConnected = false;
-            // Start fallback polling se realtime fallisce
-            startPolling();
-            // Riprova a riconnettersi dopo 5 secondi
-            reconnectTimeout = setTimeout(() => {
-              if (isMounted && !isConnected) {
-                setupRealtimeConnection();
-              }
-            }, 5000);
-          }
-        });
-    };
-
-    const startPolling = () => {
-      if (pollingInterval) return; // Già in polling
-      
-      pollingInterval = setInterval(() => {
-        if (isMounted && !isConnected) {
-          fetchUnread();
-        }
-      }, 10000); // Poll ogni 10 secondi quando realtime non funziona
-    };
-
-    const startHealthCheck = () => {
-      healthCheckInterval = setInterval(() => {
-        if (!isMounted) return;
+      try {
+        isSubscribing = true;
+        pusherClient = (await import("@/api/pusherChannelsService")).default;
         
-        const timeSinceLastFetch = Date.now() - lastFetchTime;
-        // Se non abbiamo fatto fetch per più di 2 minuti, c'è un problema
-        if (timeSinceLastFetch > 120000) {
-          isConnected = false;
-          setupRealtimeConnection();
-          startPolling();
+        // Sottoscrivi al canale privato dell'utente per notifiche globali
+        const channelName = `private-user-${userId}`;
+        
+        // Verifica se il canale è già sottoscritto
+        const existingChannel = pusherClient.channel(channelName);
+        if (existingChannel && existingChannel.subscribed) {
+          userChannel = existingChannel;
+        } else {
+          userChannel = pusherClient.subscribe(channelName);
         }
-      }, 60000); // Check ogni minuto
+        
+        if (userChannel) {
+          // Rimuovi eventuali listener esistenti per evitare duplicati
+          userChannel.unbind_all();
+          
+          userChannel.bind("pusher:subscription_succeeded", () => {
+            // Successfully subscribed
+          });
+          
+          userChannel.bind("pusher:subscription_error", (error: any) => {
+            console.error("❌ Global channel subscription error:", error);
+          });
+          
+          // Ascolta eventi di nuovi messaggi
+          userChannel.bind("new-message", (data: any) => {
+            // Invalida cache per forzare refetch con dati freschi
+            import("@/src/services/chatService.native").then(({ invalidateUnreadCache }) => {
+              invalidateUnreadCache();
+            });
+            // Usa debounce per evitare troppi refetch se arrivano più messaggi
+            debouncedFetchUnread();
+          });
+          
+          // Ascolta eventi di messaggi letti (opzionale, se backend lo implementa)
+          userChannel.bind("messages-read", (data: any) => {
+            // Invalida cache per forzare refetch con dati freschi
+            import("@/src/services/chatService.native").then(({ invalidateUnreadCache }) => {
+              invalidateUnreadCache();
+            });
+            debouncedFetchUnread();
+          });
+        }
+        
+      } catch (error) {
+        console.error("❌ Error setting up Pusher subscription:", error);
+      } finally {
+        isSubscribing = false;
+      }
     };
-
+    
+    // Gestione riconnessione automatica quando Pusher perde/recupera connessione
+    const handleConnectionStateChange = async (states: any) => {
+      if (states.current === 'connected') {
+        // Ricarica i dati quando torna online
+        await fetchUnread();
+        // Ri-sottoscrivi ai canali
+        await setupPusherSubscription();
+      }
+    };
+    
+    // Setup listener per cambio stato connessione
+    const setupConnectionListener = async () => {
+      try {
+        const client = (await import("@/api/pusherChannelsService")).default;
+        if (client && client.connection) {
+          client.connection.bind('state_change', handleConnectionStateChange);
+        }
+      } catch (error) {
+        console.error("❌ Error setting up connection listener:", error);
+      }
+    };
+    
+    // Fetch iniziale immediato (senza debounce)
     fetchUnread();
-    
-    // Setup connessione realtime con retry
-    setupRealtimeConnection();
-    
-    // Start health check
-    startHealthCheck();
-
-    // Listener per eventi custom tramite DeviceEventEmitter
-    const handleCustomUpdate = () => { 
-      fetchUnread(); 
-    };
-    DeviceEventEmitter.addListener("unread-messages-updated", handleCustomUpdate);
+    // Setup Pusher dopo il fetch iniziale
+    setupPusherSubscription();
+    // Setup listener per riconnessione
+    setupConnectionListener();
 
     return () => {
       isMounted = false;
-      if (channel) supabase.removeChannel(channel);
-      if (pollingInterval) clearInterval(pollingInterval);
-      if (reconnectTimeout) clearTimeout(reconnectTimeout);
-      if (healthCheckInterval) clearInterval(healthCheckInterval);
-      DeviceEventEmitter.removeAllListeners("unread-messages-updated");
+      
+      // Cleanup debounce timer
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+        debounceTimerRef.current = null;
+      }
+      
+      // Cleanup listener
+      unreadListener.remove();
+      
+      // Cleanup connection state listener
+      if (pusherClient && pusherClient.connection) {
+        pusherClient.connection.unbind('state_change', handleConnectionStateChange);
+        console.log("🔌 Connection state listener removed");
+      }
+      
+      // Unsubscribe da Pusher
+      if (userChannel) {
+        const channelName = `private-user-${userId}`;
+        console.log("🔌 Unsubscribing from global channel:", channelName);
+        userChannel.unbind_all();
+        userChannel.unsubscribe();
+        userChannel = null;
+      }
     };
   }, [userId, setMaxUnread, triggerRefresh]);
 

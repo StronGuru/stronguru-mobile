@@ -4,12 +4,14 @@ import { useOnboardingStore } from "@/src/store/onboardingStore";
 import { Kanit_200ExtraLight, Kanit_400Regular, Kanit_600SemiBold, useFonts } from "@expo-google-fonts/kanit";
 import { SplashScreen, Stack } from "expo-router";
 import { useEffect } from "react";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { useAuthStore } from "../src/store/authStore";
 
 import { useHeroStore } from "@/src/store/heroStore";
 import "./globals.css";
 
 export default function RootLayout() {
+  // Hook globale per ascoltare messaggi in tempo reale e aggiornare badge
   useGlobalChatRealtime();
   const { isAuthenticated, isHydrated: authHydrated } = useAuthStore();
   const { hasCompletedOnboarding, isHydrated: onboardingHydrated } = useOnboardingStore();
@@ -48,23 +50,25 @@ export default function RootLayout() {
   }
 
   return (
-    <ThemeProvider>
-      <Stack>
-        {/* Utente autenticato e onboard completo -> tabs */}
-        <Stack.Protected guard={isAuthenticated && hasCompletedOnboarding}>
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        </Stack.Protected>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <ThemeProvider>
+        <Stack>
+          {/* Utente autenticato e onboard completo -> tabs */}
+          <Stack.Protected guard={isAuthenticated && hasCompletedOnboarding}>
+            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+          </Stack.Protected>
 
-        {/* Utente autenticato ma NON ha completato onboarding -> onboarding */}
-        <Stack.Protected guard={isAuthenticated && !hasCompletedOnboarding}>
-          <Stack.Screen name="(onboarding)" options={{ headerShown: false }} />
-        </Stack.Protected>
+          {/* Utente autenticato ma NON ha completato onboarding -> onboarding */}
+          <Stack.Protected guard={isAuthenticated && !hasCompletedOnboarding}>
+            <Stack.Screen name="(onboarding)" options={{ headerShown: false }} />
+          </Stack.Protected>
 
-        {/* Utente non autenticato -> auth flow */}
-        <Stack.Protected guard={!isAuthenticated}>
-          <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-        </Stack.Protected>
-      </Stack>
-    </ThemeProvider>
+          {/* Utente non autenticato -> auth flow */}
+          <Stack.Protected guard={!isAuthenticated}>
+            <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+          </Stack.Protected>
+        </Stack>
+      </ThemeProvider>
+    </GestureHandlerRootView>
   );
 }

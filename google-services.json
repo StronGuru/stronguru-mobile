@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "408856645021",
+    "project_id": "stronguru-ac447",
+    "storage_bucket": "stronguru-ac447.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:408856645021:android:124a81803421be7393f374",
+        "android_client_info": {
+          "package_name": "com.stronguru.mobile"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDEes-2FM-JwqFLH8lcHHBdfRmQ2pk8tgA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

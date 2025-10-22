@@ -1,265 +1,275 @@
 import apiClient from "@/api/apiClient";
-import { supabase } from "../../lib/supabase/client";
-import type { ChatRoomPreview, MessageRow, RoomParticipantRow, RoomRow } from "../types/chatTypes";
+import type { ChatRoomPreview } from "../types/chatTypes";
+
+// Cache per ridurre chiamate API
+let unreadCache: {
+  data: any;
+  timestamp: number;
+} | null = null;
+
+const CACHE_TTL = 5000; // 5 secondi cache validity
 
 /**
- * Marca tutti i messaggi non letti (read null/false, non inviati dall'utente) come letti per una room.
+ * Ottieni conteggio messaggi non letti globale (NUOVO ENDPOINT OTTIMIZZATO)
  */
-export const markMessagesAsRead = async (roomId: number, userId: string) => {
+export const fetchUnreadCount = async (): Promise<{
+  total: number;
+  byConversation: {
+    conversationId: string;
+    unreadCount: number;
+    lastUnreadMessage?: string;
+  }[];
+}> => {
   try {
-    const { error } = await supabase
-      .from("messages")
-      .update({ read: true })
-      .eq("room_id", roomId)
-      .neq("sender_id", userId)
-      .or("read.is.null,read.eq.false");
-    if (error) {
-      console.error("Errore aggiornamento read messaggi:", error);
+    // Usa cache se valida
+    if (unreadCache && Date.now() - unreadCache.timestamp < CACHE_TTL) {
+      return unreadCache.data;
     }
+
+    const response = await apiClient.get("/messages/unread");
+    
+    const data = {
+      total: response.data?.data?.total || 0,
+      byConversation: response.data?.data?.byConversation || []
+    };
+    
+    // Aggiorna cache
+    unreadCache = {
+      data,
+      timestamp: Date.now()
+    };
+    
+    return data;
   } catch (err) {
-    console.error("Errore markMessagesAsRead:", err);
+    console.error("❌ Error fetching unread count:", err);
+    return { total: 0, byConversation: [] };
   }
 };
 
+/**
+ * Ottieni conteggio messaggi non letti per una conversazione specifica
+ */
+export const fetchUnreadCountForConversation = async (conversationId: string): Promise<number> => {
+  try {
+    const response = await apiClient.get(`/messages/unread/${conversationId}`);
+    const count = response.data?.data?.unreadCount || 0;
+    return count;
+  } catch (err) {
+    console.error("❌ Error fetching conversation unread count:", err);
+    return 0;
+  }
+};
 
 /**
- * Recupera le stanze (preview) per un determinato utente.
- * - Legge room_partecipants per ottenere le room a cui partecipa l'utente
- * - Recupera in batch rooms, participants e messaggi (prendendo l'ultimo per room)
- * - Restituisce array di ChatRoomPreview
+ * Invalida la cache (chiamare dopo aver letto messaggi o ricevuto nuovi)
+ */
+export const invalidateUnreadCache = () => {
+  unreadCache = null;
+};
+
+/**
+ * Marca un messaggio specifico come letto
+ */
+export const markMessageAsRead = async (messageId: string | number): Promise<void> => {
+  try {
+    await apiClient.patch(`/messages/${messageId}/read`);
+    invalidateUnreadCache(); // Invalida cache dopo aver marcato come letto
+  } catch (err) {
+    console.error("❌ Error marking message as read:", err);
+    throw err;
+  }
+};
+
+/**
+ * Marca tutti i messaggi di una conversazione come letti
+ */
+export const markMessagesAsRead = async (conversationId: string, userId: string): Promise<void> => {
+  try {
+    // Fetch all unread messages for this conversation
+    const response = await apiClient.get(`/conversations/${conversationId}/messages`);
+    const messages = response.data?.messages || response.data || [];
+    
+    // Mark each unread message that's not from current user
+    const markPromises = messages
+      .filter((msg: any) => {
+        // Estrai senderId (può essere un oggetto o una stringa)
+        let senderId: string;
+        if (typeof msg.senderId === 'object' && msg.senderId !== null) {
+          senderId = msg.senderId._id || msg.senderId.id;
+        } else {
+          senderId = msg.senderId || msg.sender?._id || msg.from?._id;
+        }
+        
+        const isRead = msg.status === 'read' || msg.read || msg.isRead;
+        const isNotFromMe = senderId !== userId;
+        
+        return isNotFromMe && !isRead;
+      })
+      .map((msg: any) => {
+        const messageId = msg._id || msg.id || msg.messageId;
+        if (!messageId) {
+          return Promise.resolve();
+        }
+        return markMessageAsRead(messageId);
+      });
+    
+    await Promise.all(markPromises);
+    invalidateUnreadCache(); // Invalida cache dopo aver marcato messaggi
+  } catch (err) {
+    console.error("❌ Error marking messages as read:", err);
+  }
+};
+
+/**
+ * Recupera tutte le conversazioni dell'utente con preview (OTTIMIZZATO)
  */
 export const fetchRoomsForUser = async (userId: string): Promise<(ChatRoomPreview & { unreadCount: number })[]> => {
   try {
-    // 1) trova room_ids dove l'utente partecipa
-    const participantResult = await supabase.from("room_partecipants").select("room_id").eq("user_id", userId);
-
-    const participantRows = participantResult.data as Pick<RoomParticipantRow, "room_id">[] | null;
-    const participantError = participantResult.error;
-
-    if (participantError) {
-      console.error("Error fetching user room_partecipants", participantError);
-      return [];
-    }
-
-    const roomIds = Array.from(new Set((participantRows || []).map((r) => r.room_id)));
-    if (roomIds.length === 0) return [];
-
-    // 2) fetch rooms, participants and messages in batch
-    const [roomsResRaw, participantsResRaw, messagesResRaw] = await Promise.all([
-      supabase.from("rooms").select("id, created_at").in("id", roomIds),
-      supabase.from("room_partecipants").select("room_id, user_id, name, created_at").in("room_id", roomIds),
-      // fetch messages for these rooms ordered desc so we can pick the latest per room
-      supabase.from("messages").select("id, created_at, room_id, sender_id, content, read").in("room_id", roomIds).order("created_at", { ascending: false })
+    // Fetch parallelo: conversazioni + unread count
+    const [conversationsResponse, unreadData] = await Promise.all([
+      apiClient.get("/conversations"),
+      fetchUnreadCount() // Usa il nuovo endpoint ottimizzato
     ]);
-
-    const roomsRes = roomsResRaw;
-    const participantsRes = participantsResRaw;
-    const messagesRes = messagesResRaw;
-
-    if (roomsRes.error) {
-      console.error("Error fetching rooms", roomsRes.error);
-      return [];
-    }
-    if (participantsRes.error) {
-      console.error("Error fetching room_partecipants", participantsRes.error);
-      return [];
-    }
-    if (messagesRes.error) {
-      console.error("Error fetching messages", messagesRes.error);
-      return [];
-    }
-
-    const rooms = (roomsRes.data as RoomRow[]) || [];
-    const participants = (participantsRes.data as RoomParticipantRow[]) || [];
-    const messages = (messagesRes.data as MessageRow[]) || [];
-
-    // 3) build map of last message per room (messages already ordered desc)
-    const lastMessageByRoom = new Map<number, MessageRow>();
-    for (const m of messages) {
-      if (!lastMessageByRoom.has(m.room_id)) {
-        lastMessageByRoom.set(m.room_id, m);
-      }
-    }
-
-    // 4) group participants by room
-    const participantsByRoom = new Map<number, RoomParticipantRow[]>();
-    for (const p of participants) {
-      const arr = participantsByRoom.get(p.room_id) || [];
-      arr.push(p);
-      participantsByRoom.set(p.room_id, arr);
-    }
-
-    // 5) calcola unreadCount per ogni room (messaggi non letti, non inviati dall'utente)
-    const unreadCountByRoom = new Map<number, number>();
-    for (const m of messages) {
-      if ((m.read === null || m.read === false) && m.sender_id !== userId) {
-        unreadCountByRoom.set(m.room_id, (unreadCountByRoom.get(m.room_id) || 0) + 1);
-      }
-    }
-
-    // 6) build previews
-    const previews: (ChatRoomPreview & { unreadCount: number })[] = [];
     
-    for (const room of rooms) {
-      const roomParticipants = participantsByRoom.get(room.id) || [];
-      const lastMessage = lastMessageByRoom.get(room.id) || null;
-      
-      // Arricchisci i dati dei partecipanti con informazioni dal database users
-      const enrichedParticipants = await Promise.all(
-        roomParticipants.map(async (p) => {
-          try {
-            const { data: userData } = await supabase
-              .from("users")
-              .select("id, first_name, last_name, avatar_url")
-              .eq("id", p.user_id)
-              .single();
-            
-            if (userData) {
-              return {
-                userId: p.user_id,
-                name: p.name,
-                firstName: userData.first_name,
-                lastName: userData.last_name,
-                avatar: userData.avatar_url,
-                lastSeen: null
-              };
-            }
-          } catch (error) {
-            console.warn(`Failed to fetch user data for ${p.user_id}:`, error);
-          }
-          
-          // Fallback ai dati esistenti
-          return {
-            userId: p.user_id,
-            name: p.name,
-            firstName: null,
-            lastName: null,
-            avatar: null,
-            lastSeen: null
-          };
-        })
-      );
-      
-      previews.push({
-        roomId: room.id,
-        participants: enrichedParticipants,
-        lastMessage: lastMessage ? {
-          id: lastMessage.id,
-          content: lastMessage.content,
-          createdAt: lastMessage.created_at,
-          senderId: lastMessage.sender_id
-        } : null,
-        unreadCount: unreadCountByRoom.get(room.id) || 0
-      });
-    }
-
-    // 7) sort: by lastMessage.createdAt desc, fallback to room.created_at
-    previews.sort((a, b) => {
-      const aTs = a.lastMessage?.createdAt ?? null;
-      const bTs = b.lastMessage?.createdAt ?? null;
-      if (aTs && bTs) return new Date(bTs).getTime() - new Date(aTs).getTime();
-      if (aTs && !bTs) return -1;
-      if (!aTs && bTs) return 1;
-      // fallback: no last messages -> keep original order (or sort by roomId)
-      return 0;
+    const conversations = conversationsResponse.data?.conversations || [];
+    
+    // Crea mappa conversationId -> unreadCount per lookup veloce
+    const unreadMap = new Map<string, number>();
+    unreadData.byConversation.forEach(item => {
+      unreadMap.set(item.conversationId, item.unreadCount);
     });
-
+    
+    // Map to ChatRoomPreview format
+    const previews: (ChatRoomPreview & { unreadCount: number })[] = conversations.map((conv: any) => {
+      const conversationId = conv._id;
+      
+      if (!conversationId) {
+        console.error("❌ Conversation without ID:", conv);
+        return {
+          roomId: 0,
+          participants: [],
+          lastMessage: null,
+          unreadCount: 0
+        };
+      }
+      
+      // Mappiamo i partecipanti
+      const participants = (conv.members || []).map((member: any) => ({
+        userId: member._id || member.id || member.userId,
+        firstName: member.firstName || null,
+        lastName: member.lastName || null,
+        name: member.name || null,
+        avatar: member.profileImg || member.avatar || null,
+        lastSeen: member.lastSeen || null
+      }));
+      
+      // Usa lastMessage dal backend
+      const lastMessageFromApi = conv.lastMessage;
+      
+      // Ottieni unreadCount dalla mappa (molto più veloce che fetchare messaggi)
+      const unreadCount = unreadMap.get(conversationId.toString()) || 0;
+      
+      // Prepara il contenuto del lastMessage con prefisso "Tu: " se è dell'utente corrente
+      let lastMessageContent = lastMessageFromApi?.body || lastMessageFromApi?.content || "";
+      const lastMessageSenderId = lastMessageFromApi?.from?._id || lastMessageFromApi?.senderId;
+      
+      // Se il messaggio è dell'utente corrente, aggiungi prefisso "Tu: "
+      if (lastMessageSenderId && String(lastMessageSenderId) === String(userId) && lastMessageContent) {
+        lastMessageContent = `Tu: ${lastMessageContent}`;
+      }
+      
+      return {
+        roomId: conversationId,
+        participants,
+        lastMessage: lastMessageFromApi ? {
+          id: lastMessageFromApi._id || lastMessageFromApi.id,
+          content: lastMessageContent,
+          createdAt: lastMessageFromApi.timestamp || lastMessageFromApi.createdAt,
+          senderId: lastMessageSenderId
+        } : null,
+        unreadCount
+      };
+    });
+    
+    // Sort by last message timestamp
+    previews.sort((a, b) => {
+      const aTime = a.lastMessage?.createdAt ? new Date(a.lastMessage.createdAt).getTime() : 0;
+      const bTime = b.lastMessage?.createdAt ? new Date(b.lastMessage.createdAt).getTime() : 0;
+      return bTime - aTime;
+    });
+    
     return previews;
   } catch (err) {
-    console.error("fetchRoomsForUser unexpected error", err);
+    console.error("❌ Error fetching conversations:", err);
     return [];
   }
 };
 
-// Helper per ottenere il nome completo di un utente (simile al web)
-const getUserDisplayName = async (userId: string, otherUserId?: string): Promise<string> => {
+/**
+ * Crea o recupera una conversazione 1:1 tra due utenti
+ */
+export const getOrCreateRoom = async (otherUserId: string, userId: string): Promise<any> => {
   try {
-    // Prima prova a cercare nei professionisti
-    try {
-      const professionalResp = await apiClient.get(`/professionals/${userId}`);
-      if (professionalResp.status >= 200 && professionalResp.status < 300 && professionalResp.data) {
-        const professional = professionalResp.data;
-        const fullName = `${professional.firstName || ''} ${professional.lastName || ''}`.trim();
-        return fullName || 'Professional';
-      }
-    } catch {
-      // Non è un professionista
+    // Create or get conversation
+    const response = await apiClient.post("/conversations", {
+      members: [userId, otherUserId]
+    });
+    
+    // Il backend restituisce { success: true, conversation: { _id, members, ... } }
+    const conversation = response.data?.conversation;
+    
+    if (!conversation || !conversation._id) {
+      console.error("❌ Invalid conversation response:", response.data);
+      throw new Error("Risposta del server non valida");
     }
-
-    // Se non è un professionista, potrebbe essere un client
-    if (otherUserId) {
-      try {
-        const clientResp = await apiClient.get(`/clientUsers/${userId}`);
-        if (clientResp.status >= 200 && clientResp.status < 300 && clientResp.data) {
-          const client = clientResp.data;
-          const fullName = `${client.firstName || ''} ${client.lastName || ''}`.trim();
-          return fullName || 'Client';
-        }
-      } catch {
-        // Non è un client
+    
+    return {
+      id: conversation._id,
+      created_at: conversation.createdAt || new Date().toISOString()
+    };
+  } catch (error: any) {
+    console.error("❌ Error creating/getting conversation:", error);
+    console.error("📦 Error response:", error.response?.data);
+    
+    // If conversation already exists, backend might return it in error response
+    if (error.response?.status === 409 || error.response?.data?.conversation) {
+      const conversation = error.response.data.conversation;
+      if (conversation?._id) {
+        return {
+          id: conversation._id,
+          created_at: conversation.createdAt || new Date().toISOString()
+        };
       }
     }
-
-    // Fallback
-    console.warn(`Nome non trovato per userId: ${userId}, usando fallback`);
-    return 'Utente Sconosciuto';
-  } catch (error) {
-    console.error('Errore nel recupero del nome utente:', error);
-    return 'Utente';
+    
+    throw new Error("Errore nella creazione/recupero della conversazione");
   }
 };
 
 /**
- * Crea o recupera una room 1:1 tra due utenti.
- * Se esiste già una room con entrambi i partecipanti, la restituisce.
- * Altrimenti crea la room e aggiunge i partecipanti con i nomi reali.
+ * Ottiene i dettagli di una conversazione specifica
  */
-export const getOrCreateRoom = async (otherUserId: string, userId: string): Promise<RoomRow> => {
-  // 1. Cerca una room esistente dove entrambi sono partecipanti
-  const { data: existingRoom } = await supabase
-    .from("room_partecipants")
-    .select(`room_id, rooms!inner(id, created_at)`)
-    .in("user_id", [userId, otherUserId]);
-
-  if (existingRoom && existingRoom.length >= 2) {
-    const roomIds = existingRoom.map((r: any) => r.room_id);
-    const duplicateRoomId = roomIds.find((id: any) => roomIds.filter((rid: any) => rid === id).length >= 2);
-    if (duplicateRoomId) {
-      const { data: room } = await supabase.from("rooms").select("*").eq("id", duplicateRoomId).single();
-      if (room) return room as RoomRow;
-    }
+export const getConversationById = async (conversationId: number): Promise<any> => {
+  try {
+    const response = await apiClient.get(`/conversations/${conversationId}`);
+    return response.data;
+  } catch (error) {
+    console.error("❌ Error fetching conversation:", error);
+    throw error;
   }
+};
 
-  // 2. Crea una nuova room
-  const { data: newRoom, error: roomError } = await supabase.from("rooms").insert([{}]).select().single();
-  if (roomError || !newRoom) {
-    console.error("Errore nella creazione della room:", roomError);
-    throw new Error("Errore nella creazione della room");
+/**
+ * Elimina una conversazione
+ */
+export const deleteConversation = async (conversationId: string | number): Promise<void> => {
+  try {
+    await apiClient.delete(`/conversations/${conversationId}`);
+    
+    // Invalida cache per aggiornare conteggi
+    invalidateUnreadCache();
+  } catch (error) {
+    console.error("❌ Error deleting conversation:", error);
+    throw error;
   }
-
-  // 3. Ottieni i nomi reali degli utenti
-  const [currentUserName, otherUserName] = await Promise.all([
-    getUserDisplayName(userId, otherUserId),
-    getUserDisplayName(otherUserId, userId)
-  ]);
-
-  // 4. Aggiungi i partecipanti con i nomi reali
-  const participantsToInsert = [
-    {
-      room_id: newRoom.id,
-      user_id: userId.toString(),
-      name: currentUserName
-    },
-    {
-      room_id: newRoom.id,
-      user_id: otherUserId.toString(),
-      name: otherUserName
-    }
-  ];
-  const { error: participantsError } = await supabase.from("room_partecipants").insert(participantsToInsert).select();
-  if (participantsError) {
-    console.error("Errore nell'aggiunta dei partecipanti:", participantsError);
-    throw new Error(`Errore nell'aggiunta dei partecipanti: ${participantsError.message}`);
-  }
-  return newRoom as RoomRow;
 };

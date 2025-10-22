@@ -1,14 +1,17 @@
+import { deleteConversation } from "@/src/services/chatService.native";
 import { useAuthStore } from "@/src/store/authStore";
 import type { ChatRoomPreview } from "@/src/types/chatTypes";
 import { useRouter } from "expo-router";
-import React, { useCallback, useMemo } from "react";
-import { FlatList, Image, Text, TouchableOpacity, View } from "react-native";
+import React, { useCallback, useMemo, useState } from "react";
+import { Alert, FlatList, Image, Text, TouchableOpacity, View } from "react-native";
+import SwipeableChatRow from "./SwipeableChatRow.native";
 
 type ChatRoomPreviewWithUnread = ChatRoomPreview & { unreadCount?: number };
 
 
 type Props = {
   rooms: ChatRoomPreviewWithUnread[];
+  onDelete?: () => void; // Callback quando una chat viene eliminata
 };
 
 
@@ -34,12 +37,48 @@ function formatTimestamp(ts?: string | null) {
   }
 }
 
-export default function ChatSidebarNative({ rooms }: Props) {
+export default function ChatSidebarNative({ rooms, onDelete }: Props) {
   const router = useRouter();
   // selector sicuro: supporta più formati del user id nello store
   const currentUserId = useAuthStore((s: any) => s.user?._id ?? s.user?.id ?? s.userId ?? s.authData?.user?.id ?? "");
+  const [deletingId, setDeletingId] = useState<string | number | null>(null);
+
+  console.log("🔍 [ChatSidebar] Current user ID:", currentUserId);
 
   const data = useMemo(() => rooms || [], [rooms]);
+
+  const handleDeleteConversation = useCallback(
+    async (roomId: string | number, displayName: string) => {
+      Alert.alert(
+        "Elimina conversazione",
+        `Sei sicuro di voler eliminare la conversazione con ${displayName}? Questa azione non può essere annullata.`,
+        [
+          {
+            text: "Annulla",
+            style: "cancel"
+          },
+          {
+            text: "Elimina",
+            style: "destructive",
+            onPress: async () => {
+              try {
+                setDeletingId(roomId);
+                await deleteConversation(roomId);
+                console.log("✅ Conversation deleted:", roomId);
+                onDelete?.(); // Notifica il parent per refreshare la lista
+              } catch (error) {
+                console.error("❌ Error deleting conversation:", error);
+                Alert.alert("Errore", "Impossibile eliminare la conversazione. Riprova.");
+              } finally {
+                setDeletingId(null);
+              }
+            }
+          }
+        ]
+      );
+    },
+    [onDelete]
+  );
 
   const renderItem = useCallback(
     ({ item }: { item: ChatRoomPreviewWithUnread }) => {
@@ -57,76 +96,85 @@ export default function ChatSidebarNative({ rooms }: Props) {
       const lastText = item.lastMessage?.content ?? "Nessun messaggio";
       const lastAt = item.lastMessage?.createdAt ?? null;
 
+      const isDeleting = deletingId === item.roomId;
+
       return (
-        <TouchableOpacity
-          onPress={() => {
-            // Passa i dati dell'utente tramite params
-            const chatUserData = mainParticipant ? {
-              id: mainParticipant.userId,
-              name: mainParticipant.firstName && mainParticipant.lastName 
-                ? `${mainParticipant.firstName} ${mainParticipant.lastName}` 
-                : mainParticipant.name || mainParticipant.userId,
-              avatar: mainParticipant.avatar
-            } : null;
-            
-            router.push({
-              pathname: `/(tabs)/chat/[room]` as any,
-              params: { 
-                room: item.roomId.toString(),
-                chatUser: chatUserData ? JSON.stringify(chatUserData) : undefined 
-              }
-            });
-          }}
-          accessibilityRole="button"
-          className="px-4 py-4 bg-background active:bg-surface/50"
+        <SwipeableChatRow
+          onDelete={() => handleDeleteConversation(item.roomId, displayName)}
+          disabled={isDeleting}
         >
-          <View className="flex-row items-center">
-            {/* Avatar */}
-            <View className="mr-3">
-              {mainParticipant?.avatar ? (
-                <Image 
-                  source={{ uri: mainParticipant.avatar }} 
-                  className="w-12 h-12 rounded-full"
-                  defaultSource={require('@/assets/images/icon.png')}
-                />
-              ) : (
-                <View className="w-12 h-12 rounded-full bg-accent items-center justify-center">
-                  <Text className="text-accent-foreground font-semibold text-lg">
-                    {displayName.charAt(0).toUpperCase()}
-                  </Text>
-                </View>
-              )}
-            </View>
-            
-            {/* Content */}
-            <View className="flex-1 min-w-0">
-              <View className="flex-row justify-between items-start mb-1">
-                <Text className="font-semibold text-foreground text-base flex-1" numberOfLines={1}>
-                  {displayName}
-                </Text>
-                <Text className="text-xs text-muted-foreground ml-2">
-                  {formatTimestamp(lastAt)}
-                </Text>
-              </View>
+          <TouchableOpacity
+            onPress={() => {
+              // Passa i dati dell'utente tramite params
+              const chatUserData = mainParticipant ? {
+                id: mainParticipant.userId,
+                name: mainParticipant.firstName && mainParticipant.lastName 
+                  ? `${mainParticipant.firstName} ${mainParticipant.lastName}` 
+                  : mainParticipant.name || mainParticipant.userId,
+                avatar: mainParticipant.avatar
+              } : null;
               
-              <View className="flex-row justify-between items-center">
-                <Text className="text-sm text-muted-foreground flex-1" numberOfLines={1}>
-                  {lastText}
-                </Text>
-                {item.unreadCount && item.unreadCount > 0 ? (
-                  <View className="ml-2 min-w-[20px] h-5 rounded-full bg-primary items-center justify-center px-2">
-                    <Text className="text-primary-foreground text-xs font-semibold">
-                      {item.unreadCount > 99 ? '99+' : item.unreadCount}
+              router.push({
+                pathname: `/(tabs)/chat/[room]` as any,
+                params: { 
+                  room: item.roomId.toString(),
+                  chatUser: chatUserData ? JSON.stringify(chatUserData) : undefined 
+                }
+              });
+            }}
+            disabled={isDeleting}
+            accessibilityRole="button"
+            className="px-4 py-4 bg-background active:bg-surface/50"
+            style={{ opacity: isDeleting ? 0.5 : 1 }}
+          >
+            <View className="flex-row items-center">
+              {/* Avatar */}
+              <View className="mr-3">
+                {mainParticipant?.avatar ? (
+                  <Image 
+                    source={{ uri: mainParticipant.avatar }} 
+                    className="w-12 h-12 rounded-full"
+                    defaultSource={require('@/assets/images/icon.png')}
+                  />
+                ) : (
+                  <View className="w-12 h-12 rounded-full bg-accent items-center justify-center">
+                    <Text className="text-accent-foreground font-semibold text-lg">
+                      {displayName.charAt(0).toUpperCase()}
                     </Text>
                   </View>
-                ) : null}
+                )}
+              </View>
+              
+              {/* Content */}
+              <View className="flex-1 min-w-0">
+                <View className="flex-row justify-between items-start mb-1">
+                  <Text className="font-semibold text-foreground text-base flex-1" numberOfLines={1}>
+                    {displayName}
+                  </Text>
+                  <Text className="text-xs text-muted-foreground ml-2">
+                    {formatTimestamp(lastAt)}
+                  </Text>
+                </View>
+                
+                <View className="flex-row justify-between items-center">
+                  <Text className="text-sm text-muted-foreground flex-1" numberOfLines={1}>
+                    {lastText}
+                  </Text>
+                  {item.unreadCount && item.unreadCount > 0 ? (
+                    <View className="ml-2 min-w-[20px] h-5 rounded-full bg-primary items-center justify-center px-2">
+                      <Text className="text-primary-foreground text-xs font-semibold">
+                        {item.unreadCount > 99 ? '99+' : item.unreadCount}
+                      </Text>
+                    </View>
+                  ) : null}
+                </View>
               </View>
             </View>
-          </View>
-        </TouchableOpacity>
+          </TouchableOpacity>
+        </SwipeableChatRow>
       );
     },
-    [router, currentUserId]
+    [router, currentUserId, deletingId, handleDeleteConversation]
   );
 
   if (!data.length) {
