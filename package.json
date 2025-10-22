@@ -71,6 +71,7 @@
     "eas-cli": "^16.24.1",
     "eslint": "^9.25.0",
     "eslint-config-expo": "~9.2.0",
+    "react-native-worklets": "npm:react-native-worklets-core@^0.4.0",
     "typescript": "~5.8.3"
   },
   "private": true
