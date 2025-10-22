@@ -26,7 +26,8 @@ export default function Settings() {
   const { notificationsGranted, locationGranted, requestNotificationPermission, requestLocationPermission, checkAllPermissions } = usePermissionsStore();
   const router = useRouter(); // ✅ Router per navigazione
   const appState = useRef(AppState.currentState); // ✅ Track app state
-  // ✅ SOLUZIONE: Detect ritorno da background (OS Settings) + redirect a Home
+
+  // Detect ritorno da background (OS Settings) + redirect a Home
   useEffect(() => {
     const subscription = AppState.addEventListener("change", (nextAppState) => {
       // App torna in foreground DA background
@@ -48,7 +49,7 @@ export default function Settings() {
     };
   }, [isFocused, router]);
 
-  // ✅ Check permessi quando Settings screen diventa focused (navigazione interna)
+  // Check permessi quando Settings screen diventa focused (navigazione interna)
   useEffect(() => {
     if (isFocused) {
       console.log("🔄 Settings screen focused - refreshing permissions...");
@@ -62,22 +63,29 @@ export default function Settings() {
     console.log("✅ Onboarding reset - will show on next launch");
   };
 
-  // ✅ Helper per aprire Settings app specifiche (non generiche device)
+  // Helper per aprire Settings app specifiche (non generiche device)
   const openAppSettings = async () => {
     try {
       if (Platform.OS === "ios") {
-        // iOS: apre Settings > [Nome App]
         console.log("🔄 Opening iOS app settings...");
+
+        // ✅ Legge bundle ID da app.json dinamicamente
+        const bundleId = Constants.expoConfig?.ios?.bundleIdentifier || "stronguru-test";
+        console.log("📱 Bundle ID:", bundleId);
+
         await Linking.openURL("app-settings:");
       } else if (Platform.OS === "android") {
-        // Android: apre Settings > Apps > [Nome App]
         console.log("🔄 Opening Android app settings...");
+
+        // ✅ Legge package da app.json dinamicamente
         const pkg = Constants.expoConfig?.android?.package || "com.stronguru.mobile";
+        console.log("📦 Package:", pkg);
+
         await IntentLauncher.startActivityAsync(IntentLauncher.ActivityAction.APPLICATION_DETAILS_SETTINGS, { data: `package:${pkg}` });
       }
-      console.log("✅ App settings opened");
+      console.log("✅ Settings opened");
     } catch (error) {
-      console.error("❌ Error opening app settings:", error);
+      console.error("❌ Error opening settings:", error);
       Alert.alert("Errore", "Impossibile aprire le impostazioni dell'app.");
     }
   };
@@ -135,7 +143,7 @@ export default function Settings() {
     }
   };
 
-  // ✅ Handler notifiche SEMPLIFICATO
+  // Handler notifiche SEMPLIFICATO
   const handleNotificationToggle = async (value: boolean) => {
     if (value) {
       // ✅ ATTIVAZIONE: mostra dialog nativo (requestPermission gestisce tutto)
@@ -152,7 +160,7 @@ export default function Settings() {
       }
       // Se granted=true, lo switch si aggiorna automaticamente via store
     } else {
-      // ✅ DISATTIVAZIONE: vai in Settings (non si può revocare da app)
+      // DISATTIVAZIONE: vai in Settings (non si può revocare da app)
       console.log("🔄 User toggled notifications OFF - redirecting to Settings");
       Alert.alert("Disattiva Notifiche", "Per disattivare le notifiche, vai nelle impostazioni dell'app.", [
         { text: "Annulla", style: "cancel" },
@@ -161,7 +169,7 @@ export default function Settings() {
     }
   };
 
-  // ✅ Handler posizione SEMPLIFICATO
+  // Handler posizione SEMPLIFICATO
   const handleLocationToggle = async (value: boolean) => {
     if (value) {
       console.log("🔄 User toggled location ON - requesting permission...");
