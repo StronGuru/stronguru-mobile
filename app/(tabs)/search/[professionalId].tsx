@@ -144,12 +144,12 @@ export default function ProfessionalDetails() {
           name: `${professional.firstName} ${professional.lastName}`,
           avatar: professional.profileImg || undefined
         };
-        
+
         // Naviga alla chat sostituendo la schermata corrente
         // In questo modo premendo "indietro" si torna alla lista chat
         router.replace({
           pathname: `/(tabs)/chat/[room]` as any,
-          params: { 
+          params: {
             room: room.id.toString(),
             chatUser: JSON.stringify(chatUserData)
           }
@@ -185,7 +185,7 @@ export default function ProfessionalDetails() {
                 ? "border-primary"
                 : professional.specializations.includes("psychologist")
                   ? "border-blue-500"
-                  : "border-red-500"
+                  : "border-destructive"
             }`}
           >
             {professional.profileImg ? (

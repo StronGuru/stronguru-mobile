@@ -1,4 +1,5 @@
 import AppText from "@/components/ui/AppText";
+import Card from "@/components/ui/Card";
 import { useUserDataStore } from "@/src/store/userDataStore";
 import React, { useMemo, useState } from "react";
 import { TouchableOpacity, View } from "react-native";
@@ -55,7 +56,7 @@ export default function NutritionChartsCard({ profileId }: NutritionChartsCardPr
   };
 
   return (
-    <View className="bg-card p-4 rounded-lg my-6 shadow-sm border border-card dark:border-secondary">
+    <Card className="my-6">
       {/* Custom Segmented Control */}
       <View className="flex-row bg-secondary dark:bg-input shadow-sm rounded-lg p-1 mb-6">
         {chartOptions.map((option) => (
@@ -73,6 +74,6 @@ export default function NutritionChartsCard({ profileId }: NutritionChartsCardPr
 
       {/* Chart selezionato */}
       {renderSelectedChart()}
-    </View>
+    </Card>
   );
 }

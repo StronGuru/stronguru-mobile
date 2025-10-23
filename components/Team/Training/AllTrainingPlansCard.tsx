@@ -32,7 +32,7 @@ export default function AllTrainingPlansCard({ trainingPlans, profileId }: AllTr
   );
 
   return (
-    <View className="bg-card shadow-sm p-4 rounded-lg my-4 border border-card dark:border-secondary">
+    <View className="bg-card shadow-sm p-4 rounded-2xl my-4 border border-card dark:border-secondary">
       <AppText className="text-xl text-primary mb-2">Altri Piani di Allenamento • {sortedTrainingPlans.length}</AppText>
       <FlatList
         data={sortedTrainingPlans}

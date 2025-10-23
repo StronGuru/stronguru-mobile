@@ -1,6 +1,6 @@
 import AppText from "@/components/ui/AppText";
+import Card from "@/components/ui/Card";
 import { DietType } from "@/lib/zod/userSchemas";
-import { View } from "react-native";
 import DietElementCard from "./DietElementCard";
 
 interface LatestDietCardProps {
@@ -10,11 +10,11 @@ interface LatestDietCardProps {
 
 export default function LatestDietCard({ diet, profileId }: LatestDietCardProps) {
   return (
-    <View className="bg-card shadow-sm p-4 pb-7 rounded-lg mt-5 mb-2 border border-card  dark:border-secondary">
+    <Card className="my-6">
       <AppText w="semi" className="text-xl text-primary mb-3">
         La più recente
       </AppText>
       <DietElementCard diet={diet} profileId={profileId} variant="latest" />
-    </View>
+    </Card>
   );
 }
