@@ -148,7 +148,7 @@ export default function SearchScreen() {
         }}
         className="shadow-sm"
       >
-        <View className="bg-card border border-gray-200 dark:border-secondary rounded-xl mb-4 overflow-hidden">
+        <View className="bg-card border border-border dark:border-secondary rounded-2xl mb-4 overflow-hidden">
           {/* ✅ Top section con background image */}
           <ImageBackground
             source={backgroundImage}

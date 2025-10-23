@@ -1,4 +1,5 @@
 import AppText from "@/components/ui/AppText";
+import Card from "@/components/ui/Card";
 import { DietType } from "@/lib/zod/userSchemas";
 import { getAutoSelectedDay } from "@/utils/mealUtils";
 import { ExternalLink } from "lucide-react-native";
@@ -100,7 +101,7 @@ export default function DietDetail({ diet }: DietDetailProps) {
   return (
     <ScrollView ref={scrollViewRef} className="flex-1 bg-background" showsVerticalScrollIndicator={false}>
       {/* Info Summary Card */}
-      <View className="bg-card shadow-sm p-4 m-4 mt-7 rounded-lg border border-card dark:border-secondary">
+      <Card className="m-4 mt-7 ">
         <View className="flex-row items-center justify-between mb-3">
           <View className="flex-1">
             <AppText w="semi" className="text-xl text-primary">
@@ -161,7 +162,7 @@ export default function DietDetail({ diet }: DietDetailProps) {
           </AppText>
           <ExternalLink size={16} color="#10b981" />
         </View>
-      </View>
+      </Card>
 
       {/* Days Tabs */}
       <View className="px-4 mb-4">

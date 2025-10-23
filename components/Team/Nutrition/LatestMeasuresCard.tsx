@@ -1,4 +1,5 @@
 import AppText from "@/components/ui/AppText";
+import Card from "@/components/ui/Card";
 import { BiaEntryType, MeasurementEntryType } from "@/lib/zod/userSchemas";
 import { useUserDataStore } from "@/src/store/userDataStore";
 import { useMemo } from "react";
@@ -64,7 +65,7 @@ export default function HorizontalCardsLayout({ profileId }: LatestMeasuresCardP
   const latestBia = getLatest<BiaEntryType, "examDate">(nutrition.bia, "examDate");
 
   return (
-    <View className="bg-card p-4 rounded-lg mt-4 shadow-sm border border-card dark:border-secondary">
+    <Card className="mt-4">
       <AppText w="semi" className="text-xl  text-primary">
         Ultime misurazioni
       </AppText>
@@ -83,6 +84,6 @@ export default function HorizontalCardsLayout({ profileId }: LatestMeasuresCardP
         <HorizontalCard label="M. magra" value={latestBia?.leanMassKg ? `${latestBia.leanMassKg} kg` : "—"} />
         <HorizontalCard label="Metabolismo" value={latestBia?.basalMetabolismKg ? `${latestBia.basalMetabolismKg} kcal` : "—"} />
       </ScrollView>
-    </View>
+    </Card>
   );
 }
