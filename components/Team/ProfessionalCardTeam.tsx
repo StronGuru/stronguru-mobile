@@ -53,30 +53,47 @@ const ProfessionalCardTeam = ({ professional }: { professional: ProfessionalType
         router.push(`/team/${professional._id}` as any);
       }}
     >
-      <View className=" items-center mb-1 ">
+      <View className="items-center mb-1 relative ">
         {/* Avatar */}
-        <View className="w-28 h-28 rounded-full items-center justify-center mt-4 mb-2 bg-secondary overflow-hidden">
+        <View
+          className={`w-24 h-24 rounded-full items-center justify-center mb-1 bg-secondary overflow-hidden border-2 ${
+            professional.specializations.includes("nutritionist")
+              ? "border-primary"
+              : professional.specializations.includes("psychologist")
+                ? "border-blue-500"
+                : "border-destructive"
+          }`}
+        >
           {professional.profileImg ? (
-            <Image source={{ uri: professional.profileImg }} className="w-28 h-28 rounded-full" resizeMode="cover" />
+            <Image source={{ uri: professional.profileImg }} className="w-24 h-24 rounded-full" resizeMode="cover" />
           ) : (
             <Text className="text-3xl font-bold text-primary dark:text-white ">{getInitials(professional.firstName, professional.lastName)}</Text>
           )}
         </View>
 
+        {/* Badges */}
+        <View className="absolute bottom-7 right-1 flex-row gap-2 ">
+          {badges.map((badge: BadgeType, index: number) => (
+            <View
+              key={`${professional._id}-${badge}-${index}`}
+              className={`w-8 h-8 ${
+                professional.specializations.includes("nutritionist")
+                  ? "bg-primary"
+                  : professional.specializations.includes("psychologist")
+                    ? "bg-blue-500"
+                    : "bg-destructive"
+              } rounded-full items-center justify-center`}
+            >
+              {renderBadgeIcon(badge)}
+            </View>
+          ))}
+        </View>
+
         <View className="items-center  ">
           {/* Name */}
-          <AppText className="text-xl  mb-2 text-center text-wrap">
+          <AppText w="semi" className="text-mdtext-center text-wrap">
             {professional.firstName} {professional.lastName}
           </AppText>
-
-          {/* Badges */}
-          <View className="flex-row gap-2 mb-3">
-            {badges.map((badge: BadgeType, index: number) => (
-              <View key={`${professional._id}-${badge}-${index}`} className="w-8 h-8 bg-accent rounded-full items-center justify-center">
-                {renderBadgeIcon(badge)}
-              </View>
-            ))}
-          </View>
         </View>
       </View>
     </TouchableOpacity>

@@ -170,7 +170,7 @@ export default function SearchScreen() {
                   ? "border-primary"
                   : professional.specializations.includes("psychologist")
                     ? "border-blue-500"
-                    : "border-red-500"
+                    : "border-destructive"
               } shadow-md`}
             >
               {professional.profileImg ? (
@@ -181,7 +181,7 @@ export default function SearchScreen() {
                       ? "border-primary"
                       : professional.specializations.includes("psychologist")
                         ? "border-blue-500"
-                        : "border-red-500"
+                        : "border-destructive"
                   }`}
                   resizeMode="cover"
                 />
