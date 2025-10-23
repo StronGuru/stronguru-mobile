@@ -1,8 +1,9 @@
 import AppText from "@/components/ui/AppText";
+import Card from "@/components/ui/Card";
 import { useUserDataStore } from "@/src/store/userDataStore";
 import { router } from "expo-router";
 import { useMemo } from "react";
-import { FlatList, TouchableOpacity, View } from "react-native";
+import { FlatList, Image, Text, TouchableOpacity, View } from "react-native";
 
 export default function NutritionSelector() {
   const { user } = useUserDataStore();
@@ -11,6 +12,10 @@ export default function NutritionSelector() {
 
   const handleProfileSelect = (profileId: string) => {
     router.push(`/team/nutrition?profileId=${profileId}`);
+  };
+
+  const getInitials = (firstName?: string, lastName?: string) => {
+    return ((firstName?.charAt(0) ?? "") + (lastName?.charAt(0) ?? "")).toUpperCase();
   };
 
   return (
@@ -25,18 +30,22 @@ export default function NutritionSelector() {
           data={nutritionProfiles}
           keyExtractor={(item) => item._id}
           renderItem={({ item }) => (
-            <View className="shadow-sm px-1">
-              <TouchableOpacity
-                onPress={() => handleProfileSelect(item._id)}
-                className="flex items-center bg-muted dark:bg-primary p-4 rounded-2xl mb-3 border border-secondary "
-              >
-                <AppText className="text-lg text-primary dark:text-card">
+            <TouchableOpacity onPress={() => handleProfileSelect(item._id)} className="p-2">
+              <Card className="shadow-sm flex-row items-center justify-center gap-4">
+                <View className="w-16 h-16 rounded-full items-center justify-center bg-secondary overflow-hidden border border-border">
+                  {item.createdBy?.profileImg ? (
+                    <Image source={{ uri: item.createdBy.profileImg }} className="w-16 h-16 rounded-full" resizeMode="cover" />
+                  ) : (
+                    <Text className="text-3xl text-primary dark:text-white ">{getInitials(item.createdBy?.firstName, item.createdBy?.lastName)}</Text>
+                  )}
+                </View>
+
+                <AppText className="text-lg">
                   {item.createdBy?.firstName} {item.createdBy?.lastName}
                 </AppText>
-
-                {/* {item.createdBy?.specializations && <Text className="text-sm text-foreground mt-1">{item.createdBy.specializations.join(", ")}</Text>} */}
-              </TouchableOpacity>
-            </View>
+              </Card>
+              {/* {item.createdBy?.specializations && <Text className="text-sm text-foreground mt-1">{item.createdBy.specializations.join(", ")}</Text>} */}
+            </TouchableOpacity>
           )}
           className="w-full"
           scrollEnabled={false}

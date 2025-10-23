@@ -30,14 +30,14 @@ export default function TeamLayout() {
         headerBackTitleStyle: { fontFamily: "Kanit_400Regular" }
       }}
     >
-      <Stack.Screen name="index" options={{ title: "Team" }} />
+      <Stack.Screen name="index" options={{ title: "Team", headerShadowVisible: false }} />
       <Stack.Screen name="nutrition/index" options={{ title: "Dati Nutrizione", headerBackTitle: "Indietro" }} />
       <Stack.Screen name="nutrition/selector" options={{ title: "" }} />
       <Stack.Screen name="nutrition/diet/[dietId]" options={{ title: "Dettagli Dieta", headerBackTitle: "Indietro" }} />
       <Stack.Screen name="psychology" options={{ title: "Psicologia" }} />
       <Stack.Screen name="training/index" options={{ title: "Allenamento" }} />
       <Stack.Screen name="training/selector" options={{ title: "" }} />
-      <Stack.Screen name="training/training-plan/[trainingPlanId]" options={{ title: "Scheda Allenamento" }} />
+      <Stack.Screen name="training/training-plan/[trainingPlanId]" options={{ title: "Scheda" }} />
       <Stack.Screen name="[professionalId]" options={{ title: "Dettagli Professionista" }} />
     </Stack>
   );

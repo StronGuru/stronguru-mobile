@@ -9,8 +9,8 @@ interface MealSectionProps {
 
 export default function MealSection({ meal, isSupplementation = false }: MealSectionProps) {
   const renderFoodItem = (item: FoodItemType, index: number) => (
-    <View key={`${item._id}-${index}`} className="flex-row justify-between border-b border-secondary last:border-b-0">
-      <AppText className="text-lg flex-1 mr-2">• {item.name}</AppText>
+    <View key={`${item._id}-${index}`} className="flex-row justify-between items-center border-b border-secondary last:border-b-0">
+      <AppText className="text-lg flex-1 mr-2">• {item.description}</AppText>
       <Text className="text-foreground dark:text-accent font-medium">
         {item.quantity} {item.unit}
       </Text>
@@ -23,7 +23,7 @@ export default function MealSection({ meal, isSupplementation = false }: MealSec
     return (
       <View className="mb-4">
         <AppText className="text-lg mb-2">{title} :</AppText>
-        <View className="bg-secondary dark:bg-muted rounded-lg p-3 ">{items.map((item, index) => renderFoodItem(item, index))}</View>
+        <View className="bg-secondary dark:bg-muted rounded-2xl p-3 ">{items.map((item, index) => renderFoodItem(item, index))}</View>
       </View>
     );
   };

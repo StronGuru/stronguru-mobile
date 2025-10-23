@@ -1,11 +1,9 @@
-// polyfills necessari per RN
-import { createClient } from "@supabase/supabase-js";
+// DEPRECATED: Supabase client removed - now using Pusher for realtime chat
+// Keep this file for backward compatibility or remove it entirely after migration
+
+// polyfills necessari per RN (mantieni se necessari per altre librerie)
 import "react-native-get-random-values";
 import "react-native-url-polyfill/auto";
 
-const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL ?? "";
-const SUPABASE_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? "";
-
-export const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
-  realtime: { params: { eventsPerSecond: 10 } }
-});
+// Placeholder - da rimuovere completamente dopo migrazione a Pusher
+export const supabase = null;

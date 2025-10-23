@@ -13,8 +13,9 @@ type Props = {
 export default function ChatMessageItemNative({ message, currentUserId, showHeader }: Props) {
   const isOwn = currentUserId ? String(message.senderId) === String(currentUserId) : false;
   const time = message.createdAt ? new Date(message.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "";
-  const isInvitationMessage = message.content.includes("📨 *Richiesta di collegamento*");
-  const urlMatch = message.content.match(/(https?:\/\/[^\s]+)/);
+  const messageContent = message.content || "";
+  const isInvitationMessage = messageContent.includes("📨 *Richiesta di collegamento*");
+  const urlMatch = messageContent.match(/(https?:\/\/[^\s]+)/);
   const invitationUrl = urlMatch ? urlMatch[0] : null;
   const { user, fetchUserData } = useUserDataStore();
   const hasOpenedInvitation = useRef(false);
@@ -53,7 +54,7 @@ export default function ChatMessageItemNative({ message, currentUserId, showHead
 
   // Rendering per messaggi di invito
   if (isInvitationMessage && invitationUrl) {
-    const messageText = message.content.split("\n\n")[1]?.replace("Accetta invito" + invitationUrl, "") || "";
+    const messageText = messageContent.split("\n\n")[1]?.replace("Accetta invito" + invitationUrl, "") || "";
 
     return (
       <View className={`flex mb-4 ${isOwn ? "items-end" : "items-start"}`}>
@@ -85,7 +86,7 @@ export default function ChatMessageItemNative({ message, currentUserId, showHead
       {showHeader && !isOwn ? <Text className="text-xs text-muted-foreground mb-1">{String(message.senderId ?? "")}</Text> : null}
 
       <View className={`${isOwn ? "bg-primary" : "bg-surface"} px-3 py-2 rounded-2xl max-w-[80%]`}>
-        <Text className={`${isOwn ? "text-primary-foreground" : "text-foreground"} leading-relaxed`}>{message.content}</Text>
+        <Text className={`${isOwn ? "text-primary-foreground" : "text-foreground"} leading-relaxed`}>{messageContent}</Text>
 
         <View className="flex-row justify-end items-center mt-1">
           {time ? <Text className={`text-[11px] ${isOwn ? "text-primary-foreground/70" : "text-muted-foreground"}`}>{time}</Text> : null}

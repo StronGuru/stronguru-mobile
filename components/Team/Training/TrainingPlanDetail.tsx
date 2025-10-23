@@ -195,7 +195,7 @@ export default function TrainingPlanDetail({ trainingPlan }: TrainingPlanDetailP
       <View key={day.dayNumber} className="mb-3 px-4">
         <TouchableOpacity
           onPress={() => toggleDay(weekNumber, day.dayNumber)}
-          className="bg-card border border-border shadow-sm rounded-lg p-4 flex-row justify-between items-center"
+          className="bg-card border border-border dark:border-secondary shadow-sm rounded-2xl p-4 flex-row justify-between items-center"
         >
           <AppText w="semi" className="text-xl dark:text-primary">
             {day.dayNumber}
@@ -226,7 +226,7 @@ export default function TrainingPlanDetail({ trainingPlan }: TrainingPlanDetailP
   return (
     <ScrollView className="flex-1 bg-background" showsVerticalScrollIndicator={false}>
       {/* Info Summary Card */}
-      <View className="bg-card shadow-sm p-4 m-4 mt-7 rounded-lg border border-card dark:border-secondary">
+      <Card className="m-4 mt-7 ">
         <View className="flex-row items-center justify-between mb-3">
           <View className="flex-1">
             <AppText w="semi" className="text-xl text-primary">
@@ -276,7 +276,7 @@ export default function TrainingPlanDetail({ trainingPlan }: TrainingPlanDetailP
           </AppText>
           <ExternalLink size={16} color="#10b981" />
         </View>
-      </View>
+      </Card>
 
       {/* Weeks Tabs */}
       <View className="px-4 mb-4">

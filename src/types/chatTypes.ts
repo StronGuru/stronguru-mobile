@@ -21,18 +21,18 @@ export type RoomParticipantRow = {
 
 // Modello usato dall'app (frontend)
 export type ChatMessage = {
-  id: number;
+  id: number | string;
   createdAt: string | null;
-  roomId: number;
+  roomId: number | string;
   senderId: string;
   content: string;
   read?: boolean | null;
 };
 
 export type ChatRoomPreview = {
-  roomId: number;
+  roomId: number | string;
   lastMessage?: {
-    id: number;
+    id: number | string;
     content: string;
     createdAt: string | null;
     senderId: string;

@@ -99,7 +99,7 @@ export default function DayPlanView({ dayPlan, weeklyPlan, scrollViewRef }: DayP
 
     if (!hasContent) {
       return (
-        <View key={mealKey} ref={setMealRef(mealKey)} className="bg-muted p-4 rounded-lg mb-3 border border-card dark:border-secondary opacity-50">
+        <View key={mealKey} ref={setMealRef(mealKey)} className="bg-muted p-4 rounded-2xl mb-3 border border-card dark:border-secondary opacity-50">
           <View className="flex-row items-center">
             <mealInfo.Icon size={24} color="#9ca3af" />
             <View className="flex-1 ms-3">
@@ -112,7 +112,7 @@ export default function DayPlanView({ dayPlan, weeklyPlan, scrollViewRef }: DayP
     }
 
     return (
-      <View key={mealKey} ref={setMealRef(mealKey)} className="bg-card p-4 shadow-sm rounded-lg mb-3 border border-card dark:border-secondary">
+      <View key={mealKey} ref={setMealRef(mealKey)} className="bg-card p-4 shadow-sm rounded-2xl mb-3 border border-card dark:border-secondary">
         <TouchableOpacity onPress={() => toggleSection(mealKey)} className="flex-row items-center">
           <mealInfo.Icon size={24} color="#10b981" />
           <View className="flex-1 ms-3">
