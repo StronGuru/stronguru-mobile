@@ -20,7 +20,7 @@ export default function TrainingPlanElementCard({ trainingPlan, profileId, varia
   };
 
   return (
-    <View className={`bg-muted p-4 shadow-sm rounded-lg border border-card dark:border-secondary`}>
+    <View className={`bg-muted p-4 shadow-sm rounded-2xl border border-card dark:border-secondary`}>
       {/* Header con titolo e status */}
       <View className="flex-row items-center justify-between mb-1">
         <View className="flex-1 mr-3">

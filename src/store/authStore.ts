@@ -1,3 +1,4 @@
+import { initializeBeamsMobile, stopBeamsMobile } from "@/api/pusherBeamsService";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
@@ -62,6 +63,18 @@ export const useAuthStore = create<AuthState>()(
             console.log("token", resp.accessToken);
             console.log("deviceId", resp.deviceId);
             console.log("userId", resp.user?.id);
+            
+            // Inizializza Pusher Beams per le notifiche push
+            if (resp.user?.id) {
+              try {
+                // Passa il token direttamente per evitare race conditions con AsyncStorage
+                await initializeBeamsMobile(resp.user.id, resp.accessToken);
+                console.log("🔔 Pusher Beams inizializzato dopo login");
+              } catch (beamsError) {
+                console.error("⚠️ Errore inizializzazione Beams (non bloccante):", beamsError);
+                // Non blocca il login se Beams fallisce
+              }
+            }
           } else {
             // IMPORTANTE: Se non c'è accessToken, considera come errore
             console.log("Login fallito - nessun accessToken"); // DEBUG
@@ -121,6 +134,16 @@ export const useAuthStore = create<AuthState>()(
 
       logoutUser: async () => {
         console.log("Logout user chiamato"); // DEBUG
+        
+        // Stop Pusher Beams prima di cancellare i dati
+        try {
+          await stopBeamsMobile();
+          console.log("🛑 Pusher Beams fermato durante logout");
+        } catch (beamsError) {
+          console.error("⚠️ Errore stop Beams durante logout (non bloccante):", beamsError);
+          // Non blocca il logout se Beams fallisce
+        }
+        
         //Cancellazione dati auth store
         set({ isAuthenticated: false, error: null, token: null, deviceId: null });
 

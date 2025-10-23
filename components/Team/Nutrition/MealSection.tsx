@@ -23,7 +23,7 @@ export default function MealSection({ meal, isSupplementation = false }: MealSec
     return (
       <View className="mb-4">
         <AppText className="text-lg mb-2">{title} :</AppText>
-        <View className="bg-secondary dark:bg-muted rounded-lg p-3 ">{items.map((item, index) => renderFoodItem(item, index))}</View>
+        <View className="bg-secondary dark:bg-muted rounded-2xl p-3 ">{items.map((item, index) => renderFoodItem(item, index))}</View>
       </View>
     );
   };

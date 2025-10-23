@@ -1,8 +1,8 @@
 {
   "expo": {
     "name": "Stronguru",
-    "slug": "stronguru-mobile-final",
-    "version": "1.1.1",
+    "slug": "stronguru-mobile",
+    "version": "1.2.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "stronguru",
@@ -16,15 +16,16 @@
     "ios": {
       "supportsTablet": true,
       "buildNumber": "2",
-      "bundleIdentifier": "stronguru-test",
+      "bundleIdentifier": "com.stronguru.mobile",
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "Stronguru usa la posizione per trovare personal trainer e nutrizionisti nella tua zona.",
-        "NSLocationAlwaysAndWhenInUseUsageDescription": "Stronguru usa la posizione per trovare personal trainer e nutrizionisti nella tua zona."
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "Stronguru usa la posizione per trovare personal trainer e nutrizionisti nella tua zona.",
+        "UIBackgroundModes": ["remote-notification"]
       }
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/adaptive-icon.png",
+        "foregroundImage": "./assets/images/splash-icon.png",
         "backgroundColor": "#ffffff"
       },
       "package": "com.stronguru.mobile",
@@ -39,9 +40,7 @@
         "android.permission.ACCESS_COARSE_LOCATION",
         "android.permission.ACCESS_FINE_LOCATION"
       ],
-      "package": "com.stronguru.mobile",
       "googleServicesFile": "./google-services.json"
-
     },
     "web": {
       "bundler": "metro",
@@ -55,12 +54,12 @@
           "androidFirebaseSenderID": "408856645021"
         }
       ],
-      
+
       [
         "expo-build-properties",
         {
           "android": {
-            "kotlinVersion": "1.9.22"
+            "kotlinVersion": "2.0.0"
           }
         }
       ],
