@@ -228,7 +228,7 @@ export default function Team() {
           <AppText w="semi" className="text-xl">
             Il tuo Team
           </AppText>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} className="px-6" contentContainerStyle={{ gap: 15 }}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} className="px-6 mt-1" contentContainerStyle={{ gap: 25 }}>
             {profiles.map((profile) => (
               <View key={profile._id} className="">
                 <ProfessionalCard professional={profile.createdBy} />

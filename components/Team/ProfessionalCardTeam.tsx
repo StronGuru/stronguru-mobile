@@ -3,7 +3,6 @@ import { useRouter } from "expo-router";
 import { Brain, Dumbbell, Salad } from "lucide-react-native";
 import React from "react";
 import { Image, Text, TouchableOpacity, View } from "react-native";
-import AppText from "../ui/AppText";
 type BadgeType = "salad" | "dumbbell" | "brain";
 
 const ProfessionalCardTeam = ({ professional }: { professional: ProfessionalType }) => {
@@ -72,7 +71,7 @@ const ProfessionalCardTeam = ({ professional }: { professional: ProfessionalType
         </View>
 
         {/* Badges */}
-        <View className="absolute bottom-7 right-1 flex-row gap-2 ">
+        <View className="absolute bottom-1 right-0 flex-row gap-2 ">
           {badges.map((badge: BadgeType, index: number) => (
             <View
               key={`${professional._id}-${badge}-${index}`}
@@ -89,12 +88,12 @@ const ProfessionalCardTeam = ({ professional }: { professional: ProfessionalType
           ))}
         </View>
 
-        <View className="items-center  ">
-          {/* Name */}
-          <AppText w="semi" className="text-mdtext-center text-wrap">
+        {/*  <View className="items-center ">
+          
+          <AppText w="semi" className="text-md text-center text-wrap">
             {professional.firstName} {professional.lastName}
           </AppText>
-        </View>
+        </View> */}
       </View>
     </TouchableOpacity>
   );
