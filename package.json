@@ -12,7 +12,6 @@
   },
   "dependencies": {
     "@expo-google-fonts/kanit": "^0.4.1",
-    "@expo/ui": "~0.1.1-alpha.10",
     "@expo/vector-icons": "^14.1.0",
     "@hookform/resolvers": "^5.2.1",
     "@jcaspar/expo-pusher-beams": "^1.0.5",
