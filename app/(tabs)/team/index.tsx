@@ -6,7 +6,7 @@ import { useAuthStore } from "@/src/store/authStore";
 import { useUserDataStore } from "@/src/store/userDataStore";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
-import { Brain, Dumbbell, Salad } from "lucide-react-native";
+import { Dumbbell, Salad } from "lucide-react-native";
 import React, { useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, RefreshControl, SafeAreaView, ScrollView, Text, TouchableOpacity, View } from "react-native";
 
@@ -196,23 +196,29 @@ export default function Team() {
         <View className="bg-primary dark:bg-card dark:border-b dark:border-secondary pt-5 pb-[55px] px-6 shadow-sm">
           {/* Quick Stats in Hero */}
           <View className="flex-row gap-3">
-            <Card className="bg-white dark:bg-input rounded-2xl px-4 py-3 flex-1">
+            <Card className="bg-white dark:bg-input rounded-2xl px-4 py-3 flex-1 items-center">
               <AppText w="semi" className="text-primary text-2xl ">
                 {availableServices.nutrition.dietsLabel}
               </AppText>
-              <AppText className="text-muted-foreground text-xs">Piani nutrizionali</AppText>
+              <AppText w="semi" className="text-muted-foreground text-xs">
+                Piani nutrizionali
+              </AppText>
             </Card>
-            <Card className="bg-white dark:bg-input  rounded-2xl px-4 py-3 flex-1">
+            <Card className="bg-white dark:bg-input  rounded-2xl px-4 py-3 flex-1 items-center">
               <AppText w="semi" className="text-primary text-2xl ">
                 {availableServices.nutrition.measurementsLabel}
               </AppText>
-              <AppText className="text-muted-foreground text-xs">Misurazioni</AppText>
+              <AppText w="semi" className="text-muted-foreground text-xs">
+                Misurazioni
+              </AppText>
             </Card>
-            <Card className="bg-white dark:bg-input rounded-2xl px-4 py-3 flex-1">
+            <Card className="bg-white dark:bg-input rounded-2xl px-4 py-3 flex-1 items-center">
               <AppText w="semi" className="text-primary text-2xl ">
                 {availableServices.training.stats ? availableServices.training.stats : "0"}
               </AppText>
-              <AppText className="text-muted-foreground text-xs">Piani allenamento</AppText>
+              <AppText w="semi" className="text-muted-foreground text-xs">
+                Allenamenti
+              </AppText>
             </Card>
           </View>
         </View>
@@ -239,60 +245,135 @@ export default function Team() {
 
           {hasAnyService ? (
             <View className=" mt-4 pb-8">
-              <View className="flex-row mb-4" style={{ gap: 12 }}>
-                {/* Nutrizione */}
-                {availableServices.nutrition.available && (
-                  <TouchableOpacity onPress={handleNutritionPress} className="flex-1 bg-primary rounded-3xl p-5 shadow-sm">
-                    <View className="bg-white rounded-2xl w-12 h-12 items-center justify-center mb-3">
-                      <Salad size={24} color="#10b981" />
-                    </View>
-                    <Text className="text-white font-bold text-lg mb-1">Nutrizione</Text>
-                    <Text className="text-white text-sm mb-3">Dati, Grafici e Diete</Text>
-                    <View className="flex-row items-center justify-between">
-                      <View className="bg-white rounded-xl px-3 py-1">
-                        <Text className="text-primary font-bold text-lg">{availableServices.nutrition.measurementsLabel}</Text>
-                      </View>
-                      <Ionicons name="arrow-forward" size={20} color="white" />
-                    </View>
-                  </TouchableOpacity>
-                )}
+              {/* Logica per layout dinamico basato su numero di servizi */}
+              {(() => {
+                const activeServices = [availableServices.nutrition.available, availableServices.training.available].filter(Boolean);
 
-                {/* Allenamento */}
-                {availableServices.training.available && (
-                  <TouchableOpacity onPress={handleTrainingPress} className="flex-1 bg-destructive rounded-3xl p-5 shadow-sm">
-                    <View className="bg-white rounded-2xl w-12 h-12 items-center justify-center mb-3">
-                      <Dumbbell size={24} color="#ef4444" />
-                    </View>
-                    <Text className="text-white font-bold text-lg mb-1">Allenamenti</Text>
-                    <Text className="text-white text-sm mb-3">Schede fitness</Text>
-                    <View className="flex-row items-center justify-between">
-                      <View className="bg-white rounded-xl px-3 py-1">
-                        <Text className="text-red-500 font-bold text-lg">{availableServices.training.stats}</Text>
-                      </View>
-                      <Ionicons name="arrow-forward" size={20} color="white" />
-                    </View>
-                  </TouchableOpacity>
-                )}
-              </View>
+                const isSingleService = activeServices.length === 1;
 
-              {/* Psicologia - Full Width */}
-              <TouchableOpacity /* onPress={handlePsychologyPress} */ className="bg-blue-500 rounded-3xl p-5">
-                <View className="flex-row items-center justify-between">
-                  <View className="flex-1">
-                    <View className="bg-white rounded-2xl w-12 h-12 items-center justify-center mb-3">
-                      <Brain size={24} color="#3b82f6" />
-                    </View>
-                    <Text className="text-white font-bold text-lg mb-1">Psicologia</Text>
-                    <Text className="text-white text-xs opacity-80">Supporto mentale e coaching</Text>
-                  </View>
-                  <View className="items-center">
-                    <View className="bg-white rounded-xl px-4 py-2">
-                      <Text className="text-blue-500 font-bold text-2xl">3</Text>
-                    </View>
-                    <Text className="text-white text-xs mt-1">sessioni</Text>
-                  </View>
-                </View>
-              </TouchableOpacity>
+                return (
+                  <>
+                    {isSingleService ? (
+                      /* Layout full-width se singolo servizio */
+                      <View className="mb-4">
+                        {/* Nutrizione - Full Width */}
+                        {availableServices.nutrition.available && (
+                          <TouchableOpacity onPress={handleNutritionPress} className="bg-primary rounded-3xl p-5 mb-4">
+                            <View className="flex-row items-center justify-between">
+                              <View className="flex-1">
+                                <View className="bg-white rounded-2xl w-12 h-12 items-center justify-center mb-3">
+                                  <Salad size={24} color="#10b981" />
+                                </View>
+                                <Text className="text-white font-bold text-lg mb-1">Nutrizione</Text>
+                                <Text className="text-white text-xs opacity-80">Dati, Grafici e Diete</Text>
+                              </View>
+                              <View className="items-center">
+                                <View className="bg-white rounded-xl px-4 py-2">
+                                  <Text className="text-primary font-bold text-2xl">{availableServices.nutrition.measurementsLabel}</Text>
+                                </View>
+                                <Text className="text-white text-xs mt-1">misurazioni</Text>
+                              </View>
+                            </View>
+                          </TouchableOpacity>
+                        )}
+
+                        {/* Allenamento - Full Width */}
+                        {availableServices.training.available && (
+                          <TouchableOpacity onPress={handleTrainingPress} className="bg-destructive rounded-3xl p-5 mb-4">
+                            <View className="flex-row items-center justify-between">
+                              <View className="flex-1">
+                                <View className="bg-white rounded-2xl w-12 h-12 items-center justify-center mb-3">
+                                  <Dumbbell size={24} color="#ef4444" />
+                                </View>
+                                <Text className="text-white font-bold text-lg mb-1">Allenamenti</Text>
+                                <Text className="text-white text-xs opacity-80">Schede fitness</Text>
+                              </View>
+                              <View className="items-center">
+                                <View className="bg-white rounded-xl px-4 py-2">
+                                  <Text className="text-red-500 font-bold text-2xl">{availableServices.training.stats}</Text>
+                                </View>
+                                <Text className="text-white text-xs mt-1">piani allenamento</Text>
+                              </View>
+                            </View>
+                          </TouchableOpacity>
+                        )}
+
+                        {/* Psicologia - Sempre Full Width */}
+                        {/* <TouchableOpacity onPress={handlePsychologyPress} className="bg-blue-500 rounded-3xl p-5">
+                          <View className="flex-row items-center justify-between">
+                            <View className="flex-1">
+                              <View className="bg-white rounded-2xl w-12 h-12 items-center justify-center mb-3">
+                                <Brain size={24} color="#3b82f6" />
+                              </View>
+                              <Text className="text-white font-bold text-lg mb-1">Psicologia</Text>
+                              <Text className="text-white text-xs opacity-80">Supporto mentale e coaching</Text>
+                            </View>
+                            <View className="items-center">
+                              <View className="bg-white rounded-xl px-4 py-2">
+                                <Text className="text-blue-500 font-bold text-2xl">3</Text>
+                              </View>
+                              <Text className="text-white text-xs mt-1">sessioni</Text>
+                            </View>
+                          </View>
+                        </TouchableOpacity> */}
+                      </View>
+                    ) : (
+                      // Layout grid per più servizi
+                      <View className="flex-row mb-4" style={{ gap: 12 }}>
+                        {/* Nutrizione */}
+                        {availableServices.nutrition.available && (
+                          <TouchableOpacity onPress={handleNutritionPress} className="flex-1 bg-primary rounded-3xl p-5 shadow-sm">
+                            <View className="bg-white rounded-2xl w-12 h-12 items-center justify-center mb-3">
+                              <Salad size={24} color="#10b981" />
+                            </View>
+                            <Text className="text-white font-bold text-lg mb-1">Nutrizione</Text>
+                            <Text className="text-white text-sm mb-3">Dati, Grafici e Diete</Text>
+                            <View className="flex-row items-center justify-between">
+                              <View className="bg-white rounded-xl px-3 py-1">
+                                <Text className="text-primary font-bold text-lg">{availableServices.nutrition.dietsLabel}</Text>
+                              </View>
+                              <Ionicons name="arrow-forward" size={20} color="white" />
+                            </View>
+                          </TouchableOpacity>
+                        )}
+
+                        {/* Allenamento */}
+                        {availableServices.training.available && (
+                          <TouchableOpacity onPress={handleTrainingPress} className="flex-1 bg-destructive rounded-3xl p-5 shadow-sm">
+                            <View className="bg-white rounded-2xl w-12 h-12 items-center justify-center mb-3">
+                              <Dumbbell size={24} color="#ef4444" />
+                            </View>
+                            <Text className="text-white font-bold text-lg mb-1">Allenamenti</Text>
+                            <Text className="text-white text-sm mb-3">Schede fitness</Text>
+                            <View className="flex-row items-center justify-between">
+                              <View className="bg-white rounded-xl px-3 py-1">
+                                <Text className="text-red-500 font-bold text-lg">{availableServices.training.stats}</Text>
+                              </View>
+                              <Ionicons name="arrow-forward" size={20} color="white" />
+                            </View>
+                          </TouchableOpacity>
+                        )}
+                        {/* Psicologia */}
+                        {/* {availableServices.psychology.available && (
+                          <TouchableOpacity onPress={handlePsychologyPress} className="flex-1 bg-blue-500 rounded-3xl p-5 shadow-sm">
+                            <View className="bg-white rounded-2xl w-12 h-12 items-center justify-center mb-3">
+                              <Brain size={24} color="#3b82f6" />
+                            </View>
+                            <Text className="text-white font-bold text-lg mb-1">Psicologia</Text>
+                            <Text className="text-white text-sm mb-3">Supporto mentale e coaching</Text>
+                            <View className="flex-row items-center justify-between">
+                              <View className="bg-white rounded-xl px-3 py-1">
+                                <Text className="text-blue-500 font-bold text-lg">{availableServices.psychology.stats}</Text>
+                              </View>
+                              <Ionicons name="arrow-forward" size={20} color="white" />
+                            </View>
+                          </TouchableOpacity>
+                        )} */}
+                      </View>
+                    )}
+                  </>
+                );
+              })()}
             </View>
           ) : (
             <View className="bg-muted p-6 rounded-2xl border border-secondary">
