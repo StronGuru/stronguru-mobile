@@ -20,7 +20,9 @@
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "Stronguru usa la posizione per trovare personal trainer e nutrizionisti nella tua zona.",
         "NSLocationAlwaysAndWhenInUseUsageDescription": "Stronguru usa la posizione per trovare personal trainer e nutrizionisti nella tua zona.",
-        "UIBackgroundModes": ["remote-notification"]
+        "UIBackgroundModes": [
+          "remote-notification"
+        ]
       }
     },
     "android": {
@@ -54,7 +56,6 @@
           "androidFirebaseSenderID": "408856645021"
         }
       ],
-
       [
         "expo-build-properties",
         {
@@ -95,8 +96,9 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "0d3a8d72-1cfd-4c48-8395-28a963e008ef"
+        "projectId": "0d472be4-e514-4c58-9edf-38ac64a19f17"
       }
-    }
+    },
+    "owner": "stronguru"
   }
 }
