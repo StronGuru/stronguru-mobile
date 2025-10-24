@@ -24,6 +24,7 @@
           "remote-notification"
         ]
       },
+      "googleServicesFile": "./GoogleService-Info.plist",
       "entitlements": {
         "aps-environment": "production"
       }
