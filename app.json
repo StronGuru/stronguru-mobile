@@ -92,7 +92,15 @@
           "locationWhenInUsePermission": "Stronguru usa la posizione per trovare personal trainer e nutrizionisti nella tua zona."
         }
       ],
-      "expo-build-properties"
+      "expo-build-properties",
+      [
+        "@sentry/react-native/expo",
+        {
+          "url": "https://sentry.io/",
+          "project": "react-native",
+          "organization": "pasquale-32"
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true
